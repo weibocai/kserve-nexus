@@ -1,0 +1,269 @@
+basePath: /
+definitions:
+  middleware.Response:
+    description: 返回通用信息
+    properties:
+      code:
+        description: 状态码
+        type: integer
+      data:
+        description: 数据内容
+      message:
+        description: 提示信息
+        type: string
+    type: object
+host: localhost:5109
+info:
+  contact:
+    email: support@example.com
+    name: API Support
+    url: http://example.com/support
+  description: KServe推理服务管理后台API，提供InferenceService、LLMInferenceService、InferenceGraph等KServe资源的查询与管理功能
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://example.com/terms/
+  title: KServe Nexus API
+  version: "1.0"
+paths:
+  /kserve/config:
+    get:
+      consumes:
+      - application/json
+      description: 获取KServe命名空间下的inferenceservice-config ConfigMap
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 配置信息
+          schema:
+            type: object
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取KServe默认配置
+      tags:
+      - config
+  /kserve/crd:
+    get:
+      consumes:
+      - application/json
+      description: 根据kind、namespace和name获取指定的Kubernetes CRD资源（目前支持kind=pod）
+      parameters:
+      - description: 资源名称
+        in: query
+        name: name
+        required: true
+        type: string
+      - description: 资源类型（如pod）
+        in: query
+        name: kind
+        required: true
+        type: string
+      - description: 命名空间
+        in: query
+        name: namespace
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取指定CRD资源
+      tags:
+      - crd
+  /kserve/graph/{name}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定命名空间下单个InferenceGraph的详细信息，包含推理路由拓扑图
+      parameters:
+      - description: InferenceGraph名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 命名空间
+        in: query
+        name: namespace
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取InferenceGraph详情
+      tags:
+      - graph
+  /kserve/isvc:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定命名空间下的InferenceService列表，若namespace=all则返回所有命名空间下的服务
+      parameters:
+      - description: 命名空间，默认all表示所有命名空间
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取InferenceService列表
+      tags:
+      - isvc
+  /kserve/isvc/{name}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定命名空间下单个InferenceService的详细信息，包含部署拓扑图。kind=grafana时返回DOT格式，否则返回节点与边JSON
+      parameters:
+      - description: InferenceService名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 命名空间
+        in: query
+        name: namespace
+        required: true
+        type: string
+      - description: 返回格式：grafana(DOT格式)或默认(节点边JSON)
+        in: query
+        name: kind
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取单个InferenceService详情及拓扑图
+      tags:
+      - isvc
+  /kserve/llmisvc:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定命名空间下的LLMInferenceService列表，若namespace=all则返回所有命名空间下的服务
+      parameters:
+      - description: 命名空间，默认all表示所有命名空间
+        in: query
+        name: namespace
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取LLM推理服务列表
+      tags:
+      - llmisvc
+  /kserve/llmisvc/{name}:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定命名空间下单个LLMInferenceService的详细信息，包含部署拓扑图。kind=grafana时返回DOT格式，否则返回节点与边JSON
+      parameters:
+      - description: LLMInferenceService名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 命名空间
+        in: query
+        name: namespace
+        required: true
+        type: string
+      - description: 返回格式：grafana(DOT格式)或默认(节点边JSON)
+        in: query
+        name: kind
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 成功
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "400":
+          description: 参数错误
+          schema:
+            $ref: '#/definitions/middleware.Response'
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取单个LLM推理服务详情及拓扑图
+      tags:
+      - llmisvc
+  /kserve/namespace:
+    get:
+      consumes:
+      - application/json
+      description: 获取Kubernetes集群中所有命名空间列表（按字母排序）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 命名空间列表
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: 请求异常
+          schema:
+            $ref: '#/definitions/middleware.Response'
+      summary: 获取所有命名空间
+      tags:
+      - namespace
+schemes:
+- http
+- https
+swagger: "2.0"

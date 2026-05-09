@@ -1,0 +1,10 @@
+# kind local-path-storage
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: local-path
+provisioner: rancher.io/local-path
+parameters:
+  pathPattern: "shared-data"
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
