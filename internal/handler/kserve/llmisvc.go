@@ -14,11 +14,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	igwapi "sigs.k8s.io/gateway-api-inference-extension/api/v1"
 
+	"github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/internal/middleware"
 	"github.com/kserve-nexus/pkg/log"
 )
 
-func (kh *KserveHandler) getLLMIsvc(ctx context.Context, namespace string) ([]map[string]string, error) {
+func (kh *Handler) getLLMIsvc(ctx context.Context, namespace string) ([]map[string]string, error) {
 	var llmisvc ksvcv1alpha2.LLMInferenceServiceList
 	if err := kh.kc.List(ctx, &llmisvc, client.InNamespace(namespace)); err != nil {
 		return nil, err
@@ -45,13 +46,13 @@ func (kh *KserveHandler) getLLMIsvc(ctx context.Context, namespace string) ([]ma
 // @Summary 获取LLM推理服务列表
 // @Description 获取指定命名空间下的LLMInferenceService列表，若namespace=all则返回所有命名空间下的服务
 // @Tags llmisvc
-// @Accept json
-// @Produce json
+// @Accept JSON
+// @Produce JSON
 // @Param namespace query string false "命名空间，默认all表示所有命名空间"
 // @Success 200 {object} middleware.Response "成功"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/llmisvc [get]
-func (kh *KserveHandler) ListLLMIsvc(c *gin.Context) {
+func (kh *Handler) ListLLMIsvc(c *gin.Context) {
 	namespace := c.DefaultQuery("namespace", "all")
 	if namespace != "all" {
 		services, err := kh.getLLMIsvc(c.Request.Context(), namespace)
@@ -75,9 +76,9 @@ func (kh *KserveHandler) ListLLMIsvc(c *gin.Context) {
 	middleware.ResponseJson(c, services, nil)
 }
 
-func (kh *KserveHandler) getInferencePoolsShow(ctx context.Context, isvcName, name, namespace string, parentHr *simpleObject, nodes simpleObjectMap) {
+func (kh *Handler) getInferencePoolsShow(ctx context.Context, isvcName, name, namespace string, parentHr *simpleObject, nodes simpleObjectMap) {
 	ip := &igwapi.InferencePool{}
-	ipObj := nodes.AddNodes(name, namespace, GetCrdKey("ip"), isvcGraphNodeStatusTrue, nil, parentHr)
+	ipObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("ip"), isvcGraphNodeStatusTrue, nil, parentHr)
 	if err := kh.kc.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ip); err != nil {
 		ipObj.SetStatus(isvcGraphNodeStatusFalse)
 		log.Logger.Error(err, "获取 InferencePool 失败", "Namespace", namespace, "Name", name)
@@ -87,14 +88,14 @@ func (kh *KserveHandler) getInferencePoolsShow(ctx context.Context, isvcName, na
 	}
 	if ip.Spec.EndpointPickerRef.Kind != "Service" {
 		log.Logger.Info("获取 InferencePool Service 失败", "kind", ip.Spec.EndpointPickerRef.Kind, "Namespace", namespace, "Name", name)
-		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, GetCrdKey("svc"), isvcGraphNodeStatusFalse, nil, ipObj)
+		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, handler.GetCrdKey("svc"), isvcGraphNodeStatusFalse, nil, ipObj)
 		return
 	}
 
 	kh.getSvcDepShow(ctx, isvcName, string(ip.Spec.EndpointPickerRef.Name), namespace, ipObj, "", nodes)
 }
 
-func (kh *KserveHandler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namespace string, nodes simpleObjectMap) {
+func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namespace string, nodes simpleObjectMap) {
 	var aiGateway epv1alpha1.AIGatewayRouteList
 	if err := kh.kc.List(ctx, &aiGateway, client.InNamespace(namespace)); err != nil {
 		return
@@ -120,7 +121,7 @@ func (kh *KserveHandler) getEnvoyProxyShow(ctx context.Context, isvcName, name, 
 	if aig == nil {
 		return
 	}
-	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, GetCrdKey(""), isvcGraphNodeStatusFalse, nil)
+	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, handler.GetCrdKey(""), isvcGraphNodeStatusFalse, nil)
 	hrObj, _ := kh.getHTTPRouteShow(ctx, isvcName, name, namespace, "", nodes)
 	hrObj.AddParent(aigObj)
 }
@@ -129,8 +130,8 @@ func (kh *KserveHandler) getEnvoyProxyShow(ctx context.Context, isvcName, name, 
 // @Summary 获取单个LLM推理服务详情及拓扑图
 // @Description 获取指定命名空间下单个LLMInferenceService的详细信息，包含部署拓扑图。kind=grafana时返回DOT格式，否则返回节点与边JSON
 // @Tags llmisvc
-// @Accept json
-// @Produce json
+// @Accept JSON
+// @Produce JSON
 // @Param name path string true "LLMInferenceService名称"
 // @Param namespace query string true "命名空间"
 // @Param kind query string false "返回格式：grafana(DOT格式)或默认(节点边JSON)"
@@ -138,7 +139,7 @@ func (kh *KserveHandler) getEnvoyProxyShow(ctx context.Context, isvcName, name, 
 // @Failure 400 {object} middleware.Response "参数错误"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/llmisvc/{name} [get]
-func (kh *KserveHandler) GetLLMIsvc(c *gin.Context) {
+func (kh *Handler) GetLLMIsvc(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Param("name")
 	kind := c.DefaultQuery("kind", "grafana")

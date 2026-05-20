@@ -1,4 +1,4 @@
-package kserve
+package handler
 
 // GetCrdKey 简写转成 kubectl api-resources
 func GetCrdKey(name string) string {

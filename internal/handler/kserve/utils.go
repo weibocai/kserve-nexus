@@ -13,7 +13,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-func (kh *KserveHandler) getDeploymentMode(ctx context.Context, dm string, annotations map[string]string, cm *corev1.ConfigMap) (ksvcconstants.DeploymentModeType, error) {
+// 获取isvc的运行模式
+func (kh *Handler) getDeploymentMode(ctx context.Context, dm string, annotations map[string]string, cm *corev1.ConfigMap) (ksvcconstants.DeploymentModeType, error) {
 	if dm != "" {
 		return ksvcconstants.DeploymentModeType(dm), nil
 	}
@@ -68,6 +69,7 @@ func splitYAMLDocuments(data []byte) [][]byte {
 	return docs
 }
 
+// 模拟kubectl apply -f {}.yaml
 func applyK8sYaml(path, namespace string, c client.Client) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -89,6 +91,7 @@ func applyK8sYaml(path, namespace string, c client.Client) error {
 	return nil
 }
 
+// 模拟kubectl delete -f {}.yaml
 func deleteK8sYaml(path, namespace string, c client.Client) error {
 	data, err := os.ReadFile(path)
 	if err != nil {

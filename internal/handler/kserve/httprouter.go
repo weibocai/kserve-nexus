@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	gwapiv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	"github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/pkg/log"
 )
 
@@ -37,7 +38,8 @@ func getHTTPRouteStatus(hr *gwapiv1.HTTPRoute) isvcGraphNodeStatus {
 	return isvcGraphNodeStatusTrue
 }
 
-func (kh *KserveHandler) showGateway(ctx context.Context, pr []gwapiv1.ParentReference, theNode *simpleObject, nodes simpleObjectMap) {
+// 网关相关
+func (kh *Handler) showGateway(ctx context.Context, pr []gwapiv1.ParentReference, theNode *simpleObject, nodes simpleObjectMap) {
 	for i := range pr {
 		nss := "default"
 		ns := pr[i].Namespace
@@ -49,8 +51,8 @@ func (kh *KserveHandler) showGateway(ctx context.Context, pr []gwapiv1.ParentRef
 			continue
 		}
 		name, gwcName := string(pr[i].Name), "未知"
-		var gwcObject = nodes.AddNodes(gwcName, "all", GetCrdKey("gc"), isvcGraphNodeStatusFalse, nil)
-		var gwObject = nodes.AddNodes(name, nss, GetCrdKey("gtw"), isvcGraphNodeStatusFalse, nil, gwcObject)
+		var gwcObject = nodes.AddNodes(gwcName, "all", handler.GetCrdKey("gc"), isvcGraphNodeStatusFalse, nil)
+		var gwObject = nodes.AddNodes(name, nss, handler.GetCrdKey("gtw"), isvcGraphNodeStatusFalse, nil, gwcObject)
 		theNode.AddParent(gwObject)
 		var gw = &gwapiv1.Gateway{}
 		if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: nss, Name: name}, gw); err != nil {
@@ -69,7 +71,8 @@ func (kh *KserveHandler) showGateway(ctx context.Context, pr []gwapiv1.ParentRef
 	}
 }
 
-func (kh *KserveHandler) getHTTPRoute(ctx context.Context, name, namespace string) (*gwapiv1.HTTPRoute, error) {
+// 路由相关
+func (kh *Handler) getHTTPRoute(ctx context.Context, name, namespace string) (*gwapiv1.HTTPRoute, error) {
 	hr := &gwapiv1.HTTPRoute{}
 	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hr); err != nil {
 		return nil, err
@@ -77,7 +80,8 @@ func (kh *KserveHandler) getHTTPRoute(ctx context.Context, name, namespace strin
 	return hr, nil
 }
 
-func (kh *KserveHandler) getVirtualServices(ctx context.Context, name, namespace string) (*istioclientv1beta1.VirtualService, error) {
+// istio 虚拟服务
+func (kh *Handler) getVirtualServices(ctx context.Context, name, namespace string) (*istioclientv1beta1.VirtualService, error) {
 	vir := istioclientv1beta1.VirtualService{}
 	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, &vir); err != nil {
 		return nil, err
@@ -85,9 +89,10 @@ func (kh *KserveHandler) getVirtualServices(ctx context.Context, name, namespace
 	return &vir, nil
 }
 
-func (kh *KserveHandler) getHTTPRouteShow(ctx context.Context, isvcName, name, namespace string, ac ksvcconstants.AutoscalerClassType, nodes simpleObjectMap) (*simpleObject, *simpleObject) {
+// 路由展示链路
+func (kh *Handler) getHTTPRouteShow(ctx context.Context, isvcName, name, namespace string, ac ksvcconstants.AutoscalerClassType, nodes simpleObjectMap) (*simpleObject, *simpleObject) {
 	hr := &gwapiv1.HTTPRoute{}
-	hrObj := nodes.AddNodes(name, namespace, GetCrdKey("hr"), isvcGraphNodeStatusFalse, nil)
+	hrObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("hr"), isvcGraphNodeStatusFalse, nil)
 	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hr); err != nil {
 		hrObj.SetStatus(isvcGraphNodeStatusFalse)
 		log.Logger.Error(err, "获取 HTTPRoute 失败", "Namespace", namespace, "Name", name)

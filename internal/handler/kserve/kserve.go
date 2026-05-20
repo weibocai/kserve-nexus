@@ -23,27 +23,27 @@ import (
 	"github.com/kserve-nexus/pkg/log"
 )
 
-// KserveHandler kserve 处理器
-type KserveHandler struct {
+// Handler kserve 处理器
+type Handler struct {
 	kc client.Client
 	cs *kubernetes.Clientset
 }
 
 // NewKserveHandler 初始化 kserve handler
-func NewKserveHandler(kc client.Client, clientSet *kubernetes.Clientset) *KserveHandler {
-	return &KserveHandler{kc: kc, cs: clientSet}
+func NewKserveHandler(kc client.Client, clientSet *kubernetes.Clientset) *Handler {
+	return &Handler{kc: kc, cs: clientSet}
 }
 
 // GetConfigMap 获取kserve默认配置
 // @Summary 获取KServe默认配置
 // @Description 获取KServe命名空间下的inferenceservice-config ConfigMap
 // @Tags config
-// @Accept json
-// @Produce json
+// @Accept JSON
+// @Produce JSON
 // @Success 200 {object} object "配置信息"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/config [get]
-func (kh *KserveHandler) GetConfigMap(c *gin.Context) {
+func (kh *Handler) GetConfigMap(c *gin.Context) {
 	cm := &corev1.ConfigMap{}
 	if err := kh.kc.Get(c.Request.Context(), types.NamespacedName{Namespace: ksvcconstants.KServeNamespace, Name: ksvcconstants.InferenceServiceConfigMapName}, cm); err != nil {
 		middleware.ErrorJson(c, err, fmt.Sprintf("获取 %s ConfigMap 异常", ksvcconstants.InferenceServiceConfigMapName))
@@ -52,7 +52,7 @@ func (kh *KserveHandler) GetConfigMap(c *gin.Context) {
 	c.JSON(http.StatusOK, cm)
 }
 
-func (kh *KserveHandler) listNamespaces(ctx context.Context) (sort.StringSlice, error) {
+func (kh *Handler) listNamespaces(ctx context.Context) (sort.StringSlice, error) {
 	var nsList corev1.NamespaceList
 	if err := kh.kc.List(ctx, &nsList); err != nil {
 		return nil, err
@@ -69,12 +69,12 @@ func (kh *KserveHandler) listNamespaces(ctx context.Context) (sort.StringSlice, 
 // @Summary 获取所有命名空间
 // @Description 获取Kubernetes集群中所有命名空间列表（按字母排序）
 // @Tags namespace
-// @Accept json
-// @Produce json
+// @Accept JSON
+// @Produce JSON
 // @Success 200 {array} string "命名空间列表"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/namespace [get]
-func (kh *KserveHandler) ListNamespaces(c *gin.Context) {
+func (kh *Handler) ListNamespaces(c *gin.Context) {
 	namespaces, err := kh.listNamespaces(c.Request.Context())
 	if err != nil {
 		middleware.ErrorJson(c, err, "")
@@ -83,7 +83,7 @@ func (kh *KserveHandler) ListNamespaces(c *gin.Context) {
 	c.JSON(http.StatusOK, namespaces)
 }
 
-func (kh *KserveHandler) getIsvc(ctx context.Context, namespace string) ([]map[string]string, error) {
+func (kh *Handler) getIsvc(ctx context.Context, namespace string) ([]map[string]string, error) {
 	var isvc ksvcv1beta1.InferenceServiceList
 	if err := kh.kc.List(ctx, &isvc, &client.ListOptions{Namespace: namespace}); err != nil {
 		return nil, err
@@ -127,13 +127,13 @@ func (kh *KserveHandler) getIsvc(ctx context.Context, namespace string) ([]map[s
 // @Summary 获取InferenceService列表
 // @Description 获取指定命名空间下的InferenceService列表，若namespace=all则返回所有命名空间下的服务
 // @Tags isvc
-// @Accept json
-// @Produce json
+// @Accept JSON
+// @Produce JSON
 // @Param namespace query string false "命名空间，默认all表示所有命名空间"
 // @Success 200 {object} middleware.Response "成功"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/isvc [get]
-func (kh *KserveHandler) ListIsvc(c *gin.Context) {
+func (kh *Handler) ListIsvc(c *gin.Context) {
 	namespace := c.DefaultQuery("namespace", "all")
 	if namespace != "all" {
 		services, err := kh.getIsvc(c.Request.Context(), namespace)
@@ -160,7 +160,7 @@ func (kh *KserveHandler) ListIsvc(c *gin.Context) {
 }
 
 // GetPodLogs 获取pod的日志
-func (kh *KserveHandler) GetPodLogs(c *gin.Context) {
+func (kh *Handler) GetPodLogs(c *gin.Context) {
 	pod := c.Query("pod")
 	namespace := c.Query("namespace")
 	container := c.DefaultQuery("container", "")
@@ -192,7 +192,7 @@ func (kh *KserveHandler) GetPodLogs(c *gin.Context) {
 }
 
 // getServiceStandard 标准服务
-func (kh *KserveHandler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.InferenceService, nodes simpleObjectMap, namespace string) {
+func (kh *Handler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.InferenceService, nodes simpleObjectMap, namespace string) {
 	ac := ksvcconstants.AutoscalerClassHPA
 	if ac1, ok := isvc.Annotations[ksvcconstants.AutoscalerClass]; ok {
 		ac = ksvcconstants.AutoscalerClassType(ac1)
@@ -237,8 +237,8 @@ func (kh *KserveHandler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.In
 // @Summary 获取单个InferenceService详情及拓扑图
 // @Description 获取指定命名空间下单个InferenceService的详细信息，包含部署拓扑图。kind=grafana时返回DOT格式，否则返回节点与边JSON
 // @Tags isvc
-// @Accept json
-// @Produce json
+// @Accept JSON
+// @Produce JSON
 // @Param name path string true "InferenceService名称"
 // @Param namespace query string true "命名空间"
 // @Param kind query string false "返回格式：grafana(DOT格式)或默认(节点边JSON)"
@@ -246,7 +246,7 @@ func (kh *KserveHandler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.In
 // @Failure 400 {object} middleware.Response "参数错误"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/isvc/{name} [get]
-func (kh *KserveHandler) GetIsvc(c *gin.Context) {
+func (kh *Handler) GetIsvc(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Param("name")
 	kind := c.DefaultQuery("kind", "grafana")

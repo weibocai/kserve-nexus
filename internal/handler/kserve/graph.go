@@ -7,13 +7,14 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/kserve-nexus/internal/middleware"
 	ksvcv1alpha1 "github.com/kserve/kserve/pkg/apis/serving/v1alpha1"
 	ksvcconstants "github.com/kserve/kserve/pkg/constants"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kserve-nexus/internal/middleware"
 )
 
-func (kh *KserveHandler) getGraph(ctx context.Context, namespace string, graph []map[string]string) ([]map[string]string, error) {
+func (kh *Handler) getGraph(ctx context.Context, namespace string, graph []map[string]string) ([]map[string]string, error) {
 	var gls ksvcv1alpha1.InferenceGraphList
 	if err := kh.kc.List(ctx, &gls, &client.ListOptions{Namespace: namespace}); err != nil {
 		return graph, err
@@ -34,7 +35,7 @@ func (kh *KserveHandler) getGraph(ctx context.Context, namespace string, graph [
 }
 
 // ListGraph 获取推理图列表
-func (kh *KserveHandler) ListGraph(c *gin.Context) {
+func (kh *Handler) ListGraph(c *gin.Context) {
 	graph := make([]map[string]string, 0)
 	namespace := c.DefaultQuery("namespace", "all")
 	if namespace == "all" {
@@ -66,7 +67,7 @@ func (kh *KserveHandler) ListGraph(c *gin.Context) {
 	return
 }
 
-func (kh *KserveHandler) getNodeEdgeLabel(graph *map[string]ksvcv1alpha1.InferenceRouter, node *ksvcv1alpha1.InferenceRouter, index int) (string, string, graphNodeKind) {
+func (kh *Handler) getNodeEdgeLabel(graph *map[string]ksvcv1alpha1.InferenceRouter, node *ksvcv1alpha1.InferenceRouter, index int) (string, string, graphNodeKind) {
 	eLabel := ""
 	if node.RouterType == ksvcv1alpha1.Switch || (node.RouterType == ksvcv1alpha1.Sequence && node.Steps[index].Condition != "") {
 		eLabel = "Condition: " + node.Steps[index].Condition
@@ -91,7 +92,7 @@ func (kh *KserveHandler) getNodeEdgeLabel(graph *map[string]ksvcv1alpha1.Inferen
 	return eLabel, nName, kind
 }
 
-func (kh *KserveHandler) node2Edge(namespace, nodeName string, parent []*simpleObject, graph *map[string]ksvcv1alpha1.InferenceRouter, nodes simpleObjectMap) []*simpleObject {
+func (kh *Handler) node2Edge(namespace, nodeName string, parent []*simpleObject, graph *map[string]ksvcv1alpha1.InferenceRouter, nodes simpleObjectMap) []*simpleObject {
 	node := (*graph)[nodeName]
 	addNodes := make([]*simpleObject, 0)
 	for i := range node.Steps {
@@ -128,7 +129,7 @@ func (kh *KserveHandler) node2Edge(namespace, nodeName string, parent []*simpleO
 // @Failure 400 {object} middleware.Response "参数错误"
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/graph/{name} [get]
-func (kh *KserveHandler) GetGraph(c *gin.Context) {
+func (kh *Handler) GetGraph(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Param("name")
 	if namespace == "" || name == "" {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
+	kserve2 "github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/pkg/client"
 	"github.com/kserve-nexus/pkg/log"
 	ksvcconstants "github.com/kserve/kserve/pkg/constants"
@@ -36,13 +37,13 @@ func TestGetAutoscaler(t *testing.T) {
 	}()
 	kh := NewKserveHandler(mgr.GetClient(), cs)
 	path := "../../../samples/test/hpa/keda.error.yaml"
-	if err = applyK8sYaml(path, "default", kc); err != nil {
+	if err = kserve2.applyK8sYaml(path, "default", kc); err != nil {
 		t.Fatalf("failed: %+v", err)
 	}
 	t.Cleanup(func() {
 		defer cancel()
 		defer func(path, namespace string, c client2.Client) {
-			if err = deleteK8sYaml(path, namespace, c); err != nil {
+			if err = kserve2.deleteK8sYaml(path, namespace, c); err != nil {
 				logger.Error(err, "failed to delete k8s")
 			}
 		}(path, "default", kc)

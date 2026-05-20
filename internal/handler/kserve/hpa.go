@@ -14,7 +14,7 @@ import (
 	"github.com/kserve-nexus/pkg/log"
 )
 
-func (kh *KserveHandler) getKedaStatus(keda *kedav1alpha1.ScaledObject) isvcGraphNodeStatus {
+func (kh *Handler) getKedaStatus(keda *kedav1alpha1.ScaledObject) isvcGraphNodeStatus {
 	for _, c := range keda.Status.Conditions {
 		if (c.Type == kedav1alpha1.ConditionActive || c.Type == kedav1alpha1.ConditionReady) && c.Status != metav1.ConditionTrue {
 			return isvcGraphNodeStatusFalse
@@ -23,7 +23,7 @@ func (kh *KserveHandler) getKedaStatus(keda *kedav1alpha1.ScaledObject) isvcGrap
 	return isvcGraphNodeStatusTrue
 }
 
-func (kh *KserveHandler) getHpaStatus(hpa *autoscalingv2.HorizontalPodAutoscaler) isvcGraphNodeStatus {
+func (kh *Handler) getHpaStatus(hpa *autoscalingv2.HorizontalPodAutoscaler) isvcGraphNodeStatus {
 	for _, c := range hpa.Status.Conditions {
 		if (c.Type == autoscalingv2.ScalingActive || c.Type == autoscalingv2.AbleToScale) && c.Status != corev1.ConditionTrue {
 			return isvcGraphNodeStatusFalse
@@ -32,7 +32,7 @@ func (kh *KserveHandler) getHpaStatus(hpa *autoscalingv2.HorizontalPodAutoscaler
 	return isvcGraphNodeStatusTrue
 }
 
-func (kh *KserveHandler) getAutoscaler(ctx context.Context, ac ksvcconstants.AutoscalerClassType, isvcName, name, namespace string) (*autoscalingv2.HorizontalPodAutoscaler, isvcGraphNodeStatus, *kedav1alpha1.ScaledObject, isvcGraphNodeStatus) {
+func (kh *Handler) getAutoscaler(ctx context.Context, ac ksvcconstants.AutoscalerClassType, isvcName, name, namespace string) (*autoscalingv2.HorizontalPodAutoscaler, isvcGraphNodeStatus, *kedav1alpha1.ScaledObject, isvcGraphNodeStatus) {
 	var keda *kedav1alpha1.ScaledObject
 	var hpa *autoscalingv2.HorizontalPodAutoscaler
 	kedaStatus, hpaStatus := isvcGraphNodeStatusFalse, isvcGraphNodeStatusFalse

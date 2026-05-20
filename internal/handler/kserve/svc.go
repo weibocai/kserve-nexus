@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/pkg/log"
 )
 
@@ -45,7 +46,7 @@ func getDepStatus(dep *appsv1.Deployment) isvcGraphNodeStatus {
 }
 
 // getSvcDep 获取推理服务相关信息：service、deployment、pods
-func (kh *KserveHandler) getSvcDep(ctx context.Context, name, namespace string) svcDepPod {
+func (kh *Handler) getSvcDep(ctx context.Context, name, namespace string) svcDepPod {
 	sdp := svcDepPod{
 		nil, make([]*appsv1.Deployment, 0), make(map[string]*corev1.PodList),
 	}
@@ -78,11 +79,12 @@ func (kh *KserveHandler) getSvcDep(ctx context.Context, name, namespace string) 
 	return sdp
 }
 
-func (kh *KserveHandler) getSvcDepShow(ctx context.Context, isvcName, name, namespace string, parent *simpleObject, ac ksvcconstants.AutoscalerClassType, nodes simpleObjectMap) *simpleObject {
+// service、develop、pod关系
+func (kh *Handler) getSvcDepShow(ctx context.Context, isvcName, name, namespace string, parent *simpleObject, ac ksvcconstants.AutoscalerClassType, nodes simpleObjectMap) *simpleObject {
 	var hpaObject *simpleObject = nil
 	if ac != "" {
 		_, hpaStatus, _, kedaStatus := kh.getAutoscaler(ctx, ac, isvcName, name, namespace)
-		hpaObject = nodes.AddNodes(name, namespace, GetCrdKey("hpa"), hpaStatus, nil)
+		hpaObject = nodes.AddNodes(name, namespace, handler.GetCrdKey("hpa"), hpaStatus, nil)
 		if ac == ksvcconstants.AutoscalerClassKeda {
 			kedaObject := nodes.AddNodes(name, namespace, "ScaledObject", kedaStatus, nil, parent)
 			hpaObject.AddParent(kedaObject)
@@ -92,12 +94,12 @@ func (kh *KserveHandler) getSvcDepShow(ctx context.Context, isvcName, name, name
 	}
 
 	sdp := kh.getSvcDep(ctx, name, namespace)
-	svcObject := nodes.AddNodes(name, namespace, GetCrdKey("svc"), getServiceStatus(sdp.Svc), nil, hpaObject, parent)
+	svcObject := nodes.AddNodes(name, namespace, handler.GetCrdKey("svc"), getServiceStatus(sdp.Svc), nil, hpaObject, parent)
 	for i := range sdp.Deploy {
-		depObject := nodes.AddNodes(sdp.Deploy[i].Name, namespace, GetCrdKey("deploy"), getDepStatus(sdp.Deploy[i]), svcObject, svcObject)
+		depObject := nodes.AddNodes(sdp.Deploy[i].Name, namespace, handler.GetCrdKey("deploy"), getDepStatus(sdp.Deploy[i]), svcObject, svcObject)
 		if pods, ok := sdp.Pod[sdp.Deploy[i].Name]; ok && pods != nil {
 			for j := range pods.Items {
-				_ = nodes.AddNodes(pods.Items[j].Name, namespace, GetCrdKey("pod"), getPodStatus(&pods.Items[i]), svcObject, depObject)
+				_ = nodes.AddNodes(pods.Items[j].Name, namespace, handler.GetCrdKey("pod"), getPodStatus(&pods.Items[i]), svcObject, depObject)
 			}
 		}
 	}
