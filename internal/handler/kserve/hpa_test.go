@@ -7,14 +7,15 @@ import (
 	"time"
 
 	kedav1alpha1 "github.com/kedacore/keda/v2/apis/keda/v1alpha1"
-	kserve2 "github.com/kserve-nexus/internal/handler"
-	"github.com/kserve-nexus/pkg/client"
-	"github.com/kserve-nexus/pkg/log"
 	ksvcconstants "github.com/kserve/kserve/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	client2 "sigs.k8s.io/controller-runtime/pkg/client"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kserve-nexus/pkg/client"
+	"github.com/kserve-nexus/pkg/log"
+	"github.com/kserve-nexus/pkg/utils"
 )
 
 func TestGetAutoscaler(t *testing.T) {
@@ -37,13 +38,13 @@ func TestGetAutoscaler(t *testing.T) {
 	}()
 	kh := NewKserveHandler(mgr.GetClient(), cs)
 	path := "../../../samples/test/hpa/keda.error.yaml"
-	if err = kserve2.applyK8sYaml(path, "default", kc); err != nil {
+	if err = utils.ApplyK8sYaml(path, "default", kc); err != nil {
 		t.Fatalf("failed: %+v", err)
 	}
 	t.Cleanup(func() {
 		defer cancel()
-		defer func(path, namespace string, c client2.Client) {
-			if err = kserve2.deleteK8sYaml(path, namespace, c); err != nil {
+		defer func(path, namespace string, c ctrlclient.Client) {
+			if err = utils.DeleteK8sYaml(path, namespace, c); err != nil {
 				logger.Error(err, "failed to delete k8s")
 			}
 		}(path, "default", kc)
