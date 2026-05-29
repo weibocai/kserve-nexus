@@ -1,10 +1,12 @@
-# kind local-path-storage
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: local-path
 provisioner: rancher.io/local-path
-parameters:
-  pathPattern: "shared-data"
-reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Retain
+parameters:
+  # 指定节点的绝对基础路径
+  nodePath: /models
+  # 如果只想用 PVC 名字作为文件夹，不加分层，可以这样写：
+  pathPattern: "{{ .PVC.Name }}"

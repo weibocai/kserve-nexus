@@ -1,0 +1,24 @@
+以下是前端生成的对话记录：
+
+
+新的需求，增加一个Dashboard页面布局如下：
+
+接口文档参见：.opencode/api.md
+
+1. 汇总数据：
+  1. isvc（总节点个数、正常节点个数、异常节点个数）
+  2. llmisvc（总节点个数、正常节点个数、异常节点个数）
+  3. graph（总节点个数、正常节点个数、异常节点个数）
+  4. 在图标右上角，增加`?`icon，当鼠标悬浮事，显示说明信息
+  5. 调用`Dashboard`获取数据
+2. event事件列表：namespace name、apiVersion、kind、reason、message、count、lastTime
+  1. 先调用：`获取websocket访问地址` 获取链接信息
+  2. 创建websocket链接，持续获取数据：`获取事件列表` 接口
+
+要求：
+
+1. 沿用现有的风格，设计页面
+
+
+
+

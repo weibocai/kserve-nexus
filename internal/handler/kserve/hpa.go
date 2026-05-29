@@ -14,28 +14,28 @@ import (
 	"github.com/kserve-nexus/pkg/log"
 )
 
-func (kh *Handler) getKedaStatus(keda *kedav1alpha1.ScaledObject) isvcGraphNodeStatus {
+func (kh *Handler) getKedaStatus(keda *kedav1alpha1.ScaledObject) GraphNodeStatus {
 	for _, c := range keda.Status.Conditions {
 		if (c.Type == kedav1alpha1.ConditionActive || c.Type == kedav1alpha1.ConditionReady) && c.Status != metav1.ConditionTrue {
-			return isvcGraphNodeStatusFalse
+			return GraphNodeStatusFalse
 		}
 	}
-	return isvcGraphNodeStatusTrue
+	return GraphNodeStatusTrue
 }
 
-func (kh *Handler) getHpaStatus(hpa *autoscalingv2.HorizontalPodAutoscaler) isvcGraphNodeStatus {
+func (kh *Handler) getHpaStatus(hpa *autoscalingv2.HorizontalPodAutoscaler) GraphNodeStatus {
 	for _, c := range hpa.Status.Conditions {
 		if (c.Type == autoscalingv2.ScalingActive || c.Type == autoscalingv2.AbleToScale) && c.Status != corev1.ConditionTrue {
-			return isvcGraphNodeStatusFalse
+			return GraphNodeStatusFalse
 		}
 	}
-	return isvcGraphNodeStatusTrue
+	return GraphNodeStatusTrue
 }
 
-func (kh *Handler) getAutoscaler(ctx context.Context, ac ksvcconstants.AutoscalerClassType, isvcName, name, namespace string) (*autoscalingv2.HorizontalPodAutoscaler, isvcGraphNodeStatus, *kedav1alpha1.ScaledObject, isvcGraphNodeStatus) {
+func (kh *Handler) getAutoscaler(ctx context.Context, ac ksvcconstants.AutoscalerClassType, isvcName, name, namespace string) (*autoscalingv2.HorizontalPodAutoscaler, GraphNodeStatus, *kedav1alpha1.ScaledObject, GraphNodeStatus) {
 	var keda *kedav1alpha1.ScaledObject
 	var hpa *autoscalingv2.HorizontalPodAutoscaler
-	kedaStatus, hpaStatus := isvcGraphNodeStatusFalse, isvcGraphNodeStatusFalse
+	kedaStatus, hpaStatus := GraphNodeStatusFalse, GraphNodeStatusFalse
 	switch ac {
 	case ksvcconstants.AutoscalerClassKeda:
 		keda = &kedav1alpha1.ScaledObject{}
@@ -55,7 +55,7 @@ func (kh *Handler) getAutoscaler(ctx context.Context, ac ksvcconstants.Autoscale
 		}
 	default:
 		log.Logger.Error(fmt.Errorf("unknown autoscaler class type: %v", ac), "推理服务hpa keda 获取失败", "namespace", namespace, "name", isvcName)
-		return nil, isvcGraphNodeStatusFalse, nil, isvcGraphNodeStatusFalse
+		return nil, GraphNodeStatusFalse, nil, GraphNodeStatusFalse
 	}
 	return hpa, hpaStatus, keda, kedaStatus
 }

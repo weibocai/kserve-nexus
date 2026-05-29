@@ -3,7 +3,6 @@ package kserve
 import (
 	"context"
 	"fmt"
-	"time"
 
 	epv1alpha1 "github.com/envoyproxy/ai-gateway/api/v1alpha1"
 	"github.com/gin-gonic/gin"
@@ -76,26 +75,26 @@ func (kh *Handler) ListLLMIsvc(c *gin.Context) {
 	middleware.ResponseJson(c, services, nil)
 }
 
-func (kh *Handler) getInferencePoolsShow(ctx context.Context, isvcName, name, namespace string, parentHr *simpleObject, nodes simpleObjectMap) {
+func (kh *Handler) getInferencePoolsShow(ctx context.Context, isvcName, name, namespace string, parentHr *GraphNode, nodes GraphNodeMap) {
 	ip := &igwapi.InferencePool{}
-	ipObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("ip"), isvcGraphNodeStatusTrue, nil, parentHr)
+	ipObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("ip"), GraphNodeStatusTrue, nil, parentHr)
 	if err := kh.kc.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ip); err != nil {
-		ipObj.SetStatus(isvcGraphNodeStatusFalse)
+		ipObj.SetStatus(GraphNodeStatusFalse)
 		log.Logger.Error(err, "获取 InferencePool 失败", "Namespace", namespace, "Name", name)
 	}
 	if !ksvcllmisvc.IsInferencePoolReady(ip) {
-		ipObj.SetStatus(isvcGraphNodeStatusFalse)
+		ipObj.SetStatus(GraphNodeStatusFalse)
 	}
 	if ip.Spec.EndpointPickerRef.Kind != "Service" {
 		log.Logger.Info("获取 InferencePool Service 失败", "kind", ip.Spec.EndpointPickerRef.Kind, "Namespace", namespace, "Name", name)
-		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, handler.GetCrdKey("svc"), isvcGraphNodeStatusFalse, nil, ipObj)
+		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, handler.GetCrdKey("svc"), GraphNodeStatusFalse, nil, ipObj)
 		return
 	}
 
 	kh.getSvcDepShow(ctx, isvcName, string(ip.Spec.EndpointPickerRef.Name), namespace, ipObj, "", nodes)
 }
 
-func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namespace string, nodes simpleObjectMap) {
+func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namespace string, nodes GraphNodeMap) {
 	var aiGateway epv1alpha1.AIGatewayRouteList
 	if err := kh.kc.List(ctx, &aiGateway, client.InNamespace(namespace)); err != nil {
 		return
@@ -121,7 +120,7 @@ func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namesp
 	if aig == nil {
 		return
 	}
-	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, handler.GetCrdKey(""), isvcGraphNodeStatusFalse, nil)
+	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, handler.GetCrdKey(""), GraphNodeStatusFalse, nil)
 	hrObj, _ := kh.getHTTPRouteShow(ctx, isvcName, name, namespace, "", nodes)
 	hrObj.AddParent(aigObj)
 }
@@ -142,8 +141,6 @@ func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namesp
 func (kh *Handler) GetLLMIsvc(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Param("name")
-	kind := c.DefaultQuery("kind", "grafana")
-	fmt.Println(namespace, name, kind)
 	if namespace == "" || name == "" {
 		middleware.ErrorJson(c, nil, fmt.Sprintf("参数错误：name=%s; namespace=%s", name, namespace))
 		return
@@ -155,24 +152,15 @@ func (kh *Handler) GetLLMIsvc(c *gin.Context) {
 		return
 	}
 	response["llmisvc"] = llmisvc
-	response["status"] = isvcGraphNodeStatusFalse
+	response["status"] = GraphNodeStatusFalse
 	for j := range llmisvc.Status.Conditions {
 		if llmisvc.Status.Conditions[j].Type == apis.ConditionReady {
 			response["status"] = string(llmisvc.Status.Conditions[j].Status)
 			break
 		}
 	}
-	var nodes simpleObjectMap = make(map[string]*simpleObject)
+	var nodes GraphNodeMap = make(map[string]*GraphNode)
 	kh.getHTTPRouteShow(c.Request.Context(), llmisvc.Name, llmisvc.Name+"-kserve-route", namespace, "", nodes)
-	if kind == "grafana" {
-		dotDiagram, err := simpleObject2DigraphNode(name, nodes)
-		if err != nil {
-			log.Logger.Error(err, "failed to generate diagram")
-		}
-		data := map[string]string{"timestamp": time.Now().Format("2006-04-02 15:01:05"), "dot_diagram": dotDiagram}
-		middleware.SuccessJson(c, data)
-		return
-	}
-	response["nodes"], response["edges"] = simpleObject2graphNode(nodes)
+	response["nodes"], response["edges"] = GraphNode2graphNode(nodes)
 	middleware.ResponseJson(c, response, nil)
 }

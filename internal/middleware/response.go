@@ -7,8 +7,9 @@ import (
 )
 
 const (
-	SUCCESS = 0
-	FAIL    = 1
+	SUCCESS         = 0
+	FAIL            = 1
+	WEBSOCKET_ERROR = 2
 )
 
 // Response 返回通用信息
@@ -28,6 +29,13 @@ func SuccessJson(c *gin.Context, data any) {
 func ErrorJson(c *gin.Context, err error, msg string) {
 	log.Logger.Error(err, msg)
 	c.JSON(200, gin.H{"code": FAIL, "message": msg})
+}
+
+func CodeJson(c *gin.Context, code int, err error, msg string) {
+	if err != nil {
+		log.Logger.Error(err, msg)
+	}
+	c.JSON(200, gin.H{"code": code, "message": msg})
 }
 
 // ResponseJson 通用返回结构体

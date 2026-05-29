@@ -4,7 +4,7 @@ metadata:
   name: local-path-pvc
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadOnlyMany
   storageClassName: local-path
   resources:
     requests:

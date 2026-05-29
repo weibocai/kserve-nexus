@@ -18,6 +18,7 @@ import (
 	"github.com/kserve-nexus/pkg/utils"
 )
 
+// TestGetAutoscaler 集群伸缩crd获取测试
 func TestGetAutoscaler(t *testing.T) {
 	logger, err := log.NewDefaultZapLogger()
 	if err != nil {

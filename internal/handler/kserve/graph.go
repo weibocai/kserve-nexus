@@ -92,21 +92,21 @@ func (kh *Handler) getNodeEdgeLabel(graph *map[string]ksvcv1alpha1.InferenceRout
 	return eLabel, nName, kind
 }
 
-func (kh *Handler) node2Edge(namespace, nodeName string, parent []*simpleObject, graph *map[string]ksvcv1alpha1.InferenceRouter, nodes simpleObjectMap) []*simpleObject {
+func (kh *Handler) node2Edge(namespace, nodeName string, parent []*GraphNode, graph *map[string]ksvcv1alpha1.InferenceRouter, nodes GraphNodeMap) []*GraphNode {
 	node := (*graph)[nodeName]
-	addNodes := make([]*simpleObject, 0)
+	addNodes := make([]*GraphNode, 0)
 	for i := range node.Steps {
 		obj := nodes.AddGraph(namespace, node.Steps[i], node.RouterType, parent...)
 		addNodes = append(addNodes, obj)
 		if node.Steps[i].NodeName == "" {
 			continue
 		}
-		cn := kh.node2Edge(namespace, node.Steps[i].NodeName, []*simpleObject{obj}, graph, nodes)
+		cn := kh.node2Edge(namespace, node.Steps[i].NodeName, []*GraphNode{obj}, graph, nodes)
 		if len(cn) > 0 {
 			parent = cn
 		} else {
 			if node.RouterType == ksvcv1alpha1.Sequence {
-				parent = []*simpleObject{obj}
+				parent = []*GraphNode{obj}
 			}
 		}
 	}
@@ -149,15 +149,15 @@ func (kh *Handler) GetGraph(c *gin.Context) {
 		return
 	}
 
-	ready := isvcGraphNodeStatusFalse
+	ready := GraphNodeStatusFalse
 	for j := range graph.Status.Conditions {
 		if graph.Status.Conditions[j].Type == "Ready" && graph.Status.Conditions[j].Status == "True" {
-			ready = isvcGraphNodeStatusTrue
+			ready = GraphNodeStatusTrue
 			break
 		}
 	}
-	var sampleObj simpleObjectMap = make(map[string]*simpleObject)
-	var ksvcObj *simpleObject
+	var sampleObj GraphNodeMap = make(map[string]*GraphNode)
+	var ksvcObj *GraphNode
 	if dm != ksvcconstants.Standard {
 		ksvcObj = kh.getKsvcShow(c.Request.Context(), name, name, namespace, nil, sampleObj)
 	}
@@ -166,8 +166,8 @@ func (kh *Handler) GetGraph(c *gin.Context) {
 	} else {
 		name = "kserve-router"
 	}
-	obj := sampleObj.AddNodes(name, namespace, "input", isvcGraphNodeStatusTrue, nil, ksvcObj)
-	kh.node2Edge(namespace, ksvcv1alpha1.GraphRootNodeName, []*simpleObject{obj}, &graph.Spec.Nodes, sampleObj)
-	nodes, edges := simpleObject2graphNode(sampleObj)
+	obj := sampleObj.AddNodes(name, namespace, "input", GraphNodeStatusTrue, nil, ksvcObj)
+	kh.node2Edge(namespace, ksvcv1alpha1.GraphRootNodeName, []*GraphNode{obj}, &graph.Spec.Nodes, sampleObj)
+	nodes, edges := GraphNode2graphNode(sampleObj)
 	middleware.SuccessJson(c, map[string]any{"kind": "single", "nodes": nodes, "edges": edges, "dm": dm, "status": ready, "graph": graph})
 }

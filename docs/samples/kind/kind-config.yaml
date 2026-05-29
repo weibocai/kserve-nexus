@@ -1,0 +1,35 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kserve # 集群名称，可自定义
+
+nodes:
+# --- 主节点 (control-plane) ---
+- role: control-plane
+  # 为主节点配置端口映射，用于对外暴露服务
+  extraPortMappings:
+  - containerPort: 80 # 容器内端口，例如 Ingress Controller 的 HTTP 端口
+    hostPort: 80 # 宿主机端口
+    protocol: TCP
+  - containerPort: 443 # 容器内端口，例如 Ingress Controller 的 HTTPS 端口
+    hostPort: 443 # 宿主机端口
+    protocol: TCP
+  - containerPort: 30000 # 容器内端口，例如 NodePort 服务的端口范围
+    hostPort: 30000 # 宿主机端口
+    protocol: TCP
+
+- role: worker
+  extraMounts:
+  - hostPath: /Users/weiwei/project/models
+    containerPath: /models
+- role: worker
+  extraMounts:
+  - hostPath: /Users/weiwei/project/models
+    containerPath: /models
+- role: worker
+  extraMounts:
+  - hostPath: /Users/weiwei/project/models
+    containerPath: /models
+- role: worker
+  extraMounts:
+  - hostPath: /Users/weiwei/project/models
+    containerPath: /models

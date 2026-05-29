@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	ksvcv1beta1 "github.com/kserve/kserve/pkg/apis/serving/v1beta1"
@@ -20,7 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kserve-nexus/internal/middleware"
-	"github.com/kserve-nexus/pkg/log"
 )
 
 // Handler kserve 处理器
@@ -192,7 +190,7 @@ func (kh *Handler) GetPodLogs(c *gin.Context) {
 }
 
 // getServiceStandard 标准服务
-func (kh *Handler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.InferenceService, nodes simpleObjectMap, namespace string) {
+func (kh *Handler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.InferenceService, nodes GraphNodeMap, namespace string) {
 	ac := ksvcconstants.AutoscalerClassHPA
 	if ac1, ok := isvc.Annotations[ksvcconstants.AutoscalerClass]; ok {
 		ac = ksvcconstants.AutoscalerClassType(ac1)
@@ -249,7 +247,6 @@ func (kh *Handler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.Inferenc
 func (kh *Handler) GetIsvc(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Param("name")
-	kind := c.DefaultQuery("kind", "grafana")
 	if namespace == "" || name == "" {
 		middleware.ErrorJson(c, nil, fmt.Sprintf("参数错误：name=%s; namespace=%s", name, namespace))
 		return
@@ -262,10 +259,10 @@ func (kh *Handler) GetIsvc(c *gin.Context) {
 		return
 	}
 	response["isvc"] = isvc
-	response["status"] = isvcGraphNodeStatusFalse
+	response["status"] = GraphNodeStatusFalse
 	for index := range isvc.Status.Conditions {
 		if isvc.Status.Conditions[index].Type == apis.ConditionReady {
-			response["status"] = isvcGraphNodeStatusTrue
+			response["status"] = GraphNodeStatusTrue
 			break
 		}
 	}
@@ -275,28 +272,19 @@ func (kh *Handler) GetIsvc(c *gin.Context) {
 		return
 	}
 
-	dm, err := kh.getDeploymentMode(nil, isvc.Status.DeploymentMode, isvc.Annotations, cm)
+	dm, err := kh.getDeploymentMode(c.Request.Context(), cm.Data["deploymentMode"], cm.Data, nil)
 	if err != nil {
 		middleware.ErrorJson(c, err, "")
 		return
 	}
 	response["deploymentMode"] = dm
-	var nodes simpleObjectMap = make(map[string]*simpleObject)
+	var nodes GraphNodeMap = make(map[string]*GraphNode)
 	if dm == "Standard" {
 		kh.getServiceStandard(c, &isvc, nodes, namespace)
 	}
 	if dm == "Knative" {
 		kh.getServiceKnative(c, &isvc, nodes, namespace)
 	}
-	if kind == "grafana" {
-		dotDiagram, err := simpleObject2DigraphNode(name, nodes)
-		if err != nil {
-			log.Logger.Error(err, "failed to generate diagram")
-		}
-		data := map[string]string{"timestamp": time.Now().Format("2006-04-02 15:01:05"), "dot_diagram": dotDiagram}
-		middleware.SuccessJson(c, data)
-		return
-	}
-	response["nodes"], response["edges"] = simpleObject2graphNode(nodes)
+	response["nodes"], response["edges"] = GraphNode2graphNode(nodes)
 	middleware.SuccessJson(c, response)
 }

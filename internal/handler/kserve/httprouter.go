@@ -14,32 +14,32 @@ import (
 	"github.com/kserve-nexus/pkg/log"
 )
 
-func getHTTPRouteStatus(hr *gwapiv1.HTTPRoute) isvcGraphNodeStatus {
+func getHTTPRouteStatus(hr *gwapiv1.HTTPRoute) GraphNodeStatus {
 	if hr == nil {
-		return isvcGraphNodeStatusFalse
+		return GraphNodeStatusFalse
 	}
 	if len(hr.Status.Parents) == 0 {
-		return isvcGraphNodeStatusFalse
+		return GraphNodeStatusFalse
 	}
 	for _, parent := range hr.Status.Parents {
 		for _, c := range parent.Conditions {
 			switch c.Type {
 			case string(gwapiv1.RouteConditionAccepted):
 				if c.Status != metav1.ConditionTrue {
-					return isvcGraphNodeStatusFalse
+					return GraphNodeStatusFalse
 				}
 			case string(gwapiv1.RouteConditionResolvedRefs):
 				if c.Status != metav1.ConditionTrue {
-					return isvcGraphNodeStatusFalse
+					return GraphNodeStatusFalse
 				}
 			}
 		}
 	}
-	return isvcGraphNodeStatusTrue
+	return GraphNodeStatusTrue
 }
 
 // 网关相关
-func (kh *Handler) showGateway(ctx context.Context, pr []gwapiv1.ParentReference, theNode *simpleObject, nodes simpleObjectMap) {
+func (kh *Handler) showGateway(ctx context.Context, pr []gwapiv1.ParentReference, theNode *GraphNode, nodes GraphNodeMap) {
 	for i := range pr {
 		nss := "default"
 		ns := pr[i].Namespace
@@ -51,15 +51,15 @@ func (kh *Handler) showGateway(ctx context.Context, pr []gwapiv1.ParentReference
 			continue
 		}
 		name, gwcName := string(pr[i].Name), "未知"
-		var gwcObject = nodes.AddNodes(gwcName, "all", handler.GetCrdKey("gc"), isvcGraphNodeStatusFalse, nil)
-		var gwObject = nodes.AddNodes(name, nss, handler.GetCrdKey("gtw"), isvcGraphNodeStatusFalse, nil, gwcObject)
+		var gwcObject = nodes.AddNodes(gwcName, "all", handler.GetCrdKey("gc"), GraphNodeStatusFalse, nil)
+		var gwObject = nodes.AddNodes(name, nss, handler.GetCrdKey("gtw"), GraphNodeStatusFalse, nil, gwcObject)
 		theNode.AddParent(gwObject)
 		var gw = &gwapiv1.Gateway{}
 		if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: nss, Name: name}, gw); err != nil {
 			continue
 		}
 		gwcName = string(gw.Spec.GatewayClassName)
-		gwObject.SetStatus(isvcGraphNodeStatusTrue)
+		gwObject.SetStatus(GraphNodeStatusTrue)
 		gwcObject.SetName(gwcName)
 		theNode.AddParent(gwObject)
 		var gwc = &gwapiv1.GatewayClass{}
@@ -67,12 +67,27 @@ func (kh *Handler) showGateway(ctx context.Context, pr []gwapiv1.ParentReference
 
 			continue
 		}
-		gwcObject.SetStatus(isvcGraphNodeStatusTrue)
+		gwcObject.SetStatus(GraphNodeStatusTrue)
 	}
 }
 
-// 路由相关
-func (kh *Handler) getHTTPRoute(ctx context.Context, name, namespace string) (*gwapiv1.HTTPRoute, error) {
+// 获取网关
+func (kh *Handler) getGateway(ctx context.Context, ingress string) (*gwapiv1.HTTPRoute, error) {
+	gs := strings.Split(ingress, "/")
+	namespace, name := gs[0], gs[1]
+	var gw = &gwapiv1.Gateway{}
+	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, gw); err != nil {
+		return nil, err
+	}
+	hr := &gwapiv1.HTTPRoute{}
+	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hr); err != nil {
+		return nil, err
+	}
+	return hr, nil
+}
+
+// getHttpRoute 获取路由
+func (kh *Handler) getHttpRoute(ctx context.Context, name, namespace string) (*gwapiv1.HTTPRoute, error) {
 	hr := &gwapiv1.HTTPRoute{}
 	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hr); err != nil {
 		return nil, err
@@ -90,17 +105,17 @@ func (kh *Handler) getVirtualServices(ctx context.Context, name, namespace strin
 }
 
 // 路由展示链路
-func (kh *Handler) getHTTPRouteShow(ctx context.Context, isvcName, name, namespace string, ac ksvcconstants.AutoscalerClassType, nodes simpleObjectMap) (*simpleObject, *simpleObject) {
+func (kh *Handler) getHTTPRouteShow(ctx context.Context, isvcName, name, namespace string, ac ksvcconstants.AutoscalerClassType, nodes GraphNodeMap) (*GraphNode, *GraphNode) {
 	hr := &gwapiv1.HTTPRoute{}
-	hrObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("hr"), isvcGraphNodeStatusFalse, nil)
+	hrObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("hr"), GraphNodeStatusFalse, nil)
 	if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, hr); err != nil {
-		hrObj.SetStatus(isvcGraphNodeStatusFalse)
+		hrObj.SetStatus(GraphNodeStatusFalse)
 		log.Logger.Error(err, "获取 HTTPRoute 失败", "Namespace", namespace, "Name", name)
 		return hrObj, nil
 	}
 	hrObj.SetStatus(getHTTPRouteStatus(hr))
 	kh.showGateway(ctx, hr.Spec.ParentRefs, hrObj, nodes)
-	var svcObject *simpleObject
+	var svcObject *GraphNode
 	for i := range hr.Spec.Rules {
 		r := &hr.Spec.Rules[i]
 		for j := range r.BackendRefs {

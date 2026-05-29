@@ -31,5 +31,5 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
-kind-config.yaml
-kind.init.sh
+docs/samples/kind/kind-config.yaml
+docs/samples/kind/kind.init.sh

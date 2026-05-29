@@ -61,9 +61,9 @@ func (kh *Handler) Dashboard(c *gin.Context) {
 		}
 	}
 	response1 := map[string]any{
-		"isvc":    map[string]int{"total": len(isvc.Items), "normal": len(isvc.Items) - isvcError, "abnormal": isvcError},
-		"llmisvc": map[string]int{"total": len(llm.Items), "normal": len(llm.Items) - llmisvcError, "abnormal": llmisvcError},
-		"graph":   map[string]int{"total": len(graph.Items), "normal": len(graph.Items) - graphError, "abnormal": graphError},
+		"isvc":    map[string]any{"all": len(isvc.Items), "ready": len(isvc.Items) - isvcError, "unready": isvcError, "message": "isvc 节点"},
+		"llmisvc": map[string]any{"all": len(llm.Items), "ready": len(llm.Items) - llmisvcError, "unready": llmisvcError, "message": "isvc 节点"},
+		"graph":   map[string]any{"all": len(graph.Items), "ready": len(graph.Items) - graphError, "unready": graphError, "message": "isvc 节点"},
 	}
 	middleware.SuccessJson(c, response1)
 }

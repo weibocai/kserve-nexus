@@ -14,36 +14,36 @@ import (
 )
 
 // getStoragePvc 获取pvc的链，kserve只允许有一个pvc存储
-func (kh *Handler) getStoragePvc(ctx context.Context, storageUri, namespace string, nodes simpleObjectMap) {
+func (kh *Handler) getStoragePvc(ctx context.Context, storageUri, namespace string, nodes GraphNodeMap) {
 	pvcName := strings.Split(strings.TrimPrefix(storageUri, "pvc://"), "/")[0]
 	pvc := &corev1.PersistentVolumeClaim{}
 	// 查找对于的pvc
-	pvcObj := nodes.AddNodes(pvcName, namespace, kserve2.GetCrdKey("pvc"), isvcGraphNodeStatusTrue, nil)
+	pvcObj := nodes.AddNodes(pvcName, namespace, kserve2.GetCrdKey("pvc"), GraphNodeStatusTrue, nil)
 	if err := kh.kc.Get(ctx, types.NamespacedName{Name: pvcName, Namespace: namespace}, pvc); err != nil {
 		log.Logger.Error(err, "Failed to get pvc")
-		pvcObj.SetStatus(isvcGraphNodeStatusFalse)
+		pvcObj.SetStatus(GraphNodeStatusFalse)
 		return
 	}
 
 	pvName := pvc.Spec.VolumeName
 	pv := &corev1.PersistentVolume{}
 	// 查找pv
-	pvObj := nodes.AddNodes(pvName, "", kserve2.GetCrdKey("pv"), isvcGraphNodeStatusTrue, nil)
+	pvObj := nodes.AddNodes(pvName, "", kserve2.GetCrdKey("pv"), GraphNodeStatusTrue, nil)
 	pvcObj.AddParent(pvObj)
 	if err := kh.kc.Get(ctx, types.NamespacedName{Name: pvName, Namespace: namespace}, pv); err != nil {
-		pvcObj.SetStatus(isvcGraphNodeStatusFalse)
+		pvcObj.SetStatus(GraphNodeStatusFalse)
 		log.Logger.Error(err, "Failed to get pv")
 		return
 	}
 	// 查找 StorageClass
-	scObj := nodes.AddNodes("未知", "", kserve2.GetCrdKey("sc"), isvcGraphNodeStatusTrue, nil)
+	scObj := nodes.AddNodes("未知", "", kserve2.GetCrdKey("sc"), GraphNodeStatusTrue, nil)
 	pvObj.AddParent(scObj)
 	if pvc.Spec.StorageClassName != nil {
 		sc := &storagev1.StorageClass{}
 		scObj.Name = *pvc.Spec.StorageClassName
 		if err := kh.kc.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName, Namespace: namespace}, sc); err != nil {
 			log.Logger.Error(err, "Failed to get sc")
-			scObj.SetStatus(isvcGraphNodeStatusFalse)
+			scObj.SetStatus(GraphNodeStatusFalse)
 		}
 		return
 	}
@@ -59,35 +59,35 @@ func (kh *Handler) getStoragePvc(ctx context.Context, storageUri, namespace stri
 			}
 		}
 	}
-	scObj.SetStatus(isvcGraphNodeStatusFalse)
+	scObj.SetStatus(GraphNodeStatusFalse)
 }
 
 // getStorageSecret 获取相关的密钥信息
-func (kh *Handler) getStorageSecret(ctx context.Context, serviceAccountName string, parent *simpleObject, nodes simpleObjectMap) {
+func (kh *Handler) getStorageSecret(ctx context.Context, serviceAccountName string, parent *GraphNode, nodes GraphNodeMap) {
 	if serviceAccountName == "" {
 		return
 	}
 	var sa = &corev1.ServiceAccount{}
-	var saObj = nodes.AddNodes(serviceAccountName, "", kserve2.GetCrdKey("ServiceAccount"), isvcGraphNodeStatusTrue, nil, parent)
+	var saObj = nodes.AddNodes(serviceAccountName, "", kserve2.GetCrdKey("ServiceAccount"), GraphNodeStatusTrue, nil, parent)
 	if err := kh.kc.Get(ctx, types.NamespacedName{Name: serviceAccountName}, sa); err != nil {
 		if errors.IsNotFound(err) {
 			return
 		}
-		saObj.SetStatus(isvcGraphNodeStatusFalse)
+		saObj.SetStatus(GraphNodeStatusFalse)
 		log.Logger.Error(err, "get service account failed", "serviceAccountName", serviceAccountName)
 		return
 	}
 	for _, secret := range sa.Secrets {
 		ss := &corev1.Secret{}
-		var ssObj = nodes.AddNodes(secret.Name, secret.Namespace, kserve2.GetCrdKey("Secret"), isvcGraphNodeStatusTrue, nil, saObj)
+		var ssObj = nodes.AddNodes(secret.Name, secret.Namespace, kserve2.GetCrdKey("Secret"), GraphNodeStatusTrue, nil, saObj)
 		if err := kh.kc.Get(ctx, types.NamespacedName{Namespace: secret.Namespace, Name: secret.Name}, ss); err != nil {
-			ssObj.SetStatus(isvcGraphNodeStatusFalse)
+			ssObj.SetStatus(GraphNodeStatusFalse)
 		}
 	}
 }
 
 // getStorage 存储相关的节点
-func (kh *Handler) getStorage(ctx context.Context, serviceAccountName, namespace string, storageURIs []string, parent *simpleObject, nodes simpleObjectMap) {
+func (kh *Handler) getStorage(ctx context.Context, serviceAccountName, namespace string, storageURIs []string, parent *GraphNode, nodes GraphNodeMap) {
 	var unPvc = ""
 	// 遍历 storageURIs，找出pvc以及其他的uri，分类处理
 	for _, storageUri := range storageURIs {
@@ -127,9 +127,9 @@ func (kh *Handler) getStorage(ctx context.Context, serviceAccountName, namespace
 		tsc = &sc
 		break
 	}
-	name, status := "未知", isvcGraphNodeStatusFalse
+	name, status := "未知", GraphNodeStatusFalse
 	if tsc != nil {
-		name, status = tsc.Name, isvcGraphNodeStatusTrue
+		name, status = tsc.Name, GraphNodeStatusTrue
 	}
 	tscObj := nodes.AddNodes(name, "", kserve2.GetCrdKey(""), status, nil, parent)
 	kh.getStorageSecret(ctx, serviceAccountName, tscObj, nodes)

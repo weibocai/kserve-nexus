@@ -33,55 +33,55 @@ type knativeRevision struct {
 	PrivateService *corev1.Service                         `json:"privateService"`
 }
 
-func (k *knativeRevision) RevisionStatus() isvcGraphNodeStatus {
+func (k *knativeRevision) RevisionStatus() GraphNodeStatus {
 	if k.Revision == nil {
-		return isvcGraphNodeStatusFalse
+		return GraphNodeStatusFalse
 	}
 	for index := range k.Revision.Status.Conditions {
 		if k.Revision.Status.Conditions[index].Type == "Ready" {
-			return isvcGraphNodeStatus(k.Revision.Status.Conditions[index].Status)
+			return GraphNodeStatus(k.Revision.Status.Conditions[index].Status)
 		}
 	}
-	return isvcGraphNodeStatusFalse
+	return GraphNodeStatusFalse
 }
 
-func (k *knativeRevision) ConfigStatus() isvcGraphNodeStatus {
+func (k *knativeRevision) ConfigStatus() GraphNodeStatus {
 	if k.Config == nil {
-		return isvcGraphNodeStatusFalse
+		return GraphNodeStatusFalse
 	}
 	for index := range k.Config.Status.Conditions {
 		if k.Config.Status.Conditions[index].Type == "Ready" {
-			return isvcGraphNodeStatus(k.Config.Status.Conditions[index].Status)
+			return GraphNodeStatus(k.Config.Status.Conditions[index].Status)
 		}
 	}
-	return isvcGraphNodeStatusFalse
+	return GraphNodeStatusFalse
 }
 
-func (k *knativeRevision) ServerLessStatus() isvcGraphNodeStatus {
+func (k *knativeRevision) ServerLessStatus() GraphNodeStatus {
 	if k.ServerLess == nil {
-		return isvcGraphNodeStatusFalse
+		return GraphNodeStatusFalse
 	}
 	for index := range k.ServerLess.Status.Conditions {
 		if k.ServerLess.Status.Conditions[index].Type == "Ready" {
-			return isvcGraphNodeStatus(k.ServerLess.Status.Conditions[index].Status)
+			return GraphNodeStatus(k.ServerLess.Status.Conditions[index].Status)
 		}
 	}
-	return isvcGraphNodeStatusFalse
+	return GraphNodeStatusFalse
 }
 
-func (k *knativeRevision) ToSampleObject(ksvcObj *simpleObject, nodes simpleObjectMap) {
+func (k *knativeRevision) ToSampleObject(ksvcObj *GraphNode, nodes GraphNodeMap) {
 	rObj := nodes.AddNodes(k.RevisionName, k.Namespace, handler.GetCrdKey("revision"), k.RevisionStatus(), ksvcObj)
 	nodes.AddNodes(k.RevisionName, k.Namespace, handler.GetCrdKey("kConfig"), k.ConfigStatus(), ksvcObj, rObj)
 	slObj := nodes.AddNodes(k.RevisionName, k.Namespace, handler.GetCrdKey("kLessService"), k.ServerLessStatus(), ksvcObj, rObj)
-	sStatus := isvcGraphNodeStatusTrue
+	sStatus := GraphNodeStatusTrue
 	if k.Service == nil {
-		sStatus = isvcGraphNodeStatusFalse
+		sStatus = GraphNodeStatusFalse
 	}
 	sObj := nodes.AddNodes(k.RevisionName, k.Namespace, handler.GetCrdKey("svc"), sStatus, ksvcObj, slObj)
-	nodes.AddNodes(k.RevisionName, k.Namespace, handler.GetCrdKey("deployment"), getDepStatus(k.Deployment), ksvcObj, sObj)
-	spStatus := isvcGraphNodeStatusTrue
+	nodes.AddNodes(k.RevisionName, k.Namespace, handler.GetCrdKey("deployment"), GetDepStatus(k.Deployment), ksvcObj, sObj)
+	spStatus := GraphNodeStatusTrue
 	if k.PrivateService == nil {
-		spStatus = isvcGraphNodeStatusFalse
+		spStatus = GraphNodeStatusFalse
 	}
 	nodes.AddNodes(k.RevisionName+"-private", k.Namespace, handler.GetCrdKey("svc"), spStatus, ksvcObj, slObj)
 }
@@ -176,12 +176,12 @@ func newKnativeRevision(ctx context.Context, kc client.Client, ksvc *knservingv1
 	return kv
 }
 
-func (kh *Handler) getVirtualServicesShow(ctx context.Context, name, namespace string, nodes simpleObjectMap) *simpleObject {
+func (kh *Handler) getVirtualServicesShow(ctx context.Context, name, namespace string, nodes GraphNodeMap) *GraphNode {
 	vr, err := kh.getVirtualServices(ctx, name, namespace)
-	virObject := nodes.AddNodes(name, namespace, handler.GetCrdKey("vs"), isvcGraphNodeStatusFalse, nil)
+	virObject := nodes.AddNodes(name, namespace, handler.GetCrdKey("vs"), GraphNodeStatusFalse, nil)
 	if err != nil {
 		log.Logger.Error(err, "获取virtualservices 失败 ", "namespace", namespace, "name", name)
-		virObject.SetStatus(isvcGraphNodeStatusFalse)
+		virObject.SetStatus(GraphNodeStatusFalse)
 		return virObject
 	}
 	for i := range vr.Spec.Gateways {
@@ -192,11 +192,11 @@ func (kh *Handler) getVirtualServicesShow(ctx context.Context, name, namespace s
 		gwns, gwn := gw[0], gw[1]
 		var gateway = &istioclientv1beta1.Gateway{}
 		var gwIstio = &corev1.ServiceList{}
-		gwObject := nodes.AddNodes(gwn, gwns, handler.GetCrdKey("gw"), isvcGraphNodeStatusTrue, nil)
+		gwObject := nodes.AddNodes(gwn, gwns, handler.GetCrdKey("gw"), GraphNodeStatusTrue, nil)
 		virObject.AddParent(gwObject)
 		if err = kh.kc.Get(ctx, client.ObjectKey{Name: gwn, Namespace: gwns}, gateway); err != nil {
 			log.Logger.Error(err, "获取virtualservices gateway 失败 ", "namespace", namespace, "name", name)
-			gwObject.SetStatus(isvcGraphNodeStatusFalse)
+			gwObject.SetStatus(GraphNodeStatusFalse)
 			continue
 		}
 		ls := &metav1.LabelSelector{MatchLabels: gateway.Spec.Selector}
@@ -206,20 +206,20 @@ func (kh *Handler) getVirtualServicesShow(ctx context.Context, name, namespace s
 		}
 		kind := reflect.TypeOf((*corev1.Service)(nil)).Elem().Name()
 		for j := range gwIstio.Items {
-			gwIstioObj := nodes.AddNodes(gwIstio.Items[j].Name, "istio-system", kind, isvcGraphNodeStatusTrue, nil)
+			gwIstioObj := nodes.AddNodes(gwIstio.Items[j].Name, "istio-system", kind, GraphNodeStatusTrue, nil)
 			gwObject.AddParent(gwIstioObj)
 		}
 	}
 	return virObject
 }
 
-func (kh *Handler) getKsvcStatus(ksvc *knservingv1.Service) isvcGraphNodeStatus {
+func (kh *Handler) getKsvcStatus(ksvc *knservingv1.Service) GraphNodeStatus {
 	for _, kc := range ksvc.Status.Conditions {
 		if kc.Status != corev1.ConditionTrue {
-			return isvcGraphNodeStatusFalse
+			return GraphNodeStatusFalse
 		}
 	}
-	return isvcGraphNodeStatusTrue
+	return GraphNodeStatusTrue
 }
 
 func (kh *Handler) getKsvc(ctx context.Context, name, isvcName, namespace string) (*knservingv1.Service, *corev1.Service, []*knativeRevision) {
@@ -240,14 +240,14 @@ func (kh *Handler) getKsvc(ctx context.Context, name, isvcName, namespace string
 	return ksvc, ksvcSvc, ksvcRev
 }
 
-func (kh *Handler) getKsvcShow(ctx context.Context, name, isvcName, namespace string, parent *simpleObject, nodes simpleObjectMap) *simpleObject {
+func (kh *Handler) getKsvcShow(ctx context.Context, name, isvcName, namespace string, parent *GraphNode, nodes GraphNodeMap) *GraphNode {
 	ksvc, ksvcSvc, ksvcRev := kh.getKsvc(ctx, name, isvcName, namespace)
 	virMesh := kh.getVirtualServicesShow(ctx, name+"-mesh", namespace, nodes)
 	virIngress := kh.getVirtualServicesShow(ctx, name+"-ingress", namespace, nodes)
 	ksvcObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("ksvc"), kh.getKsvcStatus(ksvc), nil, parent, virMesh, virIngress)
-	ksvcSvcStatus := isvcGraphNodeStatusTrue
+	ksvcSvcStatus := GraphNodeStatusTrue
 	if ksvcSvc == nil {
-		ksvcSvcStatus = isvcGraphNodeStatusFalse
+		ksvcSvcStatus = GraphNodeStatusFalse
 	}
 	_ = nodes.AddNodes(name, namespace, handler.GetCrdKey("svc"), ksvcSvcStatus, ksvcObj)
 	for index := range ksvcRev {
@@ -257,13 +257,13 @@ func (kh *Handler) getKsvcShow(ctx context.Context, name, isvcName, namespace st
 }
 
 // Knative 相关节点
-func (kh *Handler) getServiceKnative(c *gin.Context, isvc *v1beta1.InferenceService, nodes simpleObjectMap, namespace string) {
+func (kh *Handler) getServiceKnative(c *gin.Context, isvc *v1beta1.InferenceService, nodes GraphNodeMap, namespace string) {
 	virObj := kh.getVirtualServicesShow(c, isvc.Name, namespace, nodes)
 	svc := corev1.Service{}
-	svcObj := nodes.AddNodes(isvc.Name, namespace, handler.GetCrdKey("svc"), isvcGraphNodeStatusTrue, nil, virObj)
+	svcObj := nodes.AddNodes(isvc.Name, namespace, handler.GetCrdKey("svc"), GraphNodeStatusTrue, nil, virObj)
 	if err := kh.kc.Get(c.Request.Context(), types.NamespacedName{Namespace: namespace, Name: isvc.Name}, &svc); err != nil {
 		log.Logger.Error(err, "获取svc 失败 ", "namespace", namespace, "name", isvc.Name)
-		svcObj.SetStatus(isvcGraphNodeStatusFalse)
+		svcObj.SetStatus(GraphNodeStatusFalse)
 	}
 
 	// 推理服务
