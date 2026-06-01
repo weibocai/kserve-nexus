@@ -189,48 +189,6 @@ func (kh *Handler) GetPodLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]interface{}{"logs": buf.String()})
 }
 
-// getServiceStandard 标准服务
-func (kh *Handler) getServiceStandard(c *gin.Context, isvc *ksvcv1beta1.InferenceService, nodes GraphNodeMap, namespace string) {
-	ac := ksvcconstants.AutoscalerClassHPA
-	if ac1, ok := isvc.Annotations[ksvcconstants.AutoscalerClass]; ok {
-		ac = ksvcconstants.AutoscalerClassType(ac1)
-	}
-	kh.getHTTPRouteShow(c.Request.Context(), isvc.Name, isvc.Name, namespace, ac, nodes)
-	// 推理
-	predictorName := ksvcconstants.PredictorServiceName(isvc.Name)
-	// 获取存储相关的节点
-	storageURIs := make([]string, 0)
-	if isvc.Spec.Predictor.Model.StorageURI != nil {
-		storageURIs = append(storageURIs, *isvc.Spec.Predictor.Model.StorageURI)
-	}
-	for _, si := range isvc.Spec.Predictor.StorageUris {
-		storageURIs = append(storageURIs, si.Uri)
-	}
-	_, svcObject := kh.getHTTPRouteShow(c.Request.Context(), isvc.Name, predictorName, namespace, ac, nodes)
-	kh.getStorage(c.Request.Context(), isvc.Spec.Predictor.ServiceAccountName, namespace, storageURIs, svcObject, nodes)
-
-	// Transformer
-	if isvc.Spec.Transformer != nil {
-		transformerName := ksvcconstants.TransformerServiceName(isvc.Name)
-		storageURIs = make([]string, 0)
-		for _, si := range isvc.Spec.Transformer.StorageUris {
-			storageURIs = append(storageURIs, si.Uri)
-		}
-		_, svcTObject := kh.getHTTPRouteShow(c.Request.Context(), isvc.Name, transformerName, namespace, ac, nodes)
-		kh.getStorage(c.Request.Context(), isvc.Spec.Explainer.ServiceAccountName, namespace, storageURIs, svcTObject, nodes)
-	}
-	// Explainer
-	if isvc.Spec.Explainer != nil {
-		explainerName := ksvcconstants.ExplainerServiceName(isvc.Name)
-		storageURIs = make([]string, 0)
-		for _, si := range isvc.Spec.Explainer.StorageUris {
-			storageURIs = append(storageURIs, si.Uri)
-		}
-		_, svcEObject := kh.getHTTPRouteShow(c.Request.Context(), isvc.Name, explainerName, namespace, ac, nodes)
-		kh.getStorage(c.Request.Context(), isvc.Spec.Explainer.ServiceAccountName, namespace, storageURIs, svcEObject, nodes)
-	}
-}
-
 // GetIsvc 获取单个InferenceService详情
 // @Summary 获取单个InferenceService详情及拓扑图
 // @Description 获取指定命名空间下单个InferenceService的详细信息，包含部署拓扑图。kind=grafana时返回DOT格式，否则返回节点与边JSON
@@ -277,10 +235,16 @@ func (kh *Handler) GetIsvc(c *gin.Context) {
 		middleware.ErrorJson(c, err, "")
 		return
 	}
+	// Reconcile ingress
+	ingressConfig, err := ksvcv1beta1.NewIngressConfig(cm)
+	if err != nil {
+		middleware.ErrorJson(c, err, "")
+		return
+	}
 	response["deploymentMode"] = dm
 	var nodes GraphNodeMap = make(map[string]*GraphNode)
 	if dm == "Standard" {
-		kh.getServiceStandard(c, &isvc, nodes, namespace)
+		nodes = *Standard2GraphNode(c.Request.Context(), kh.kc, &isvc, ingressConfig)
 	}
 	if dm == "Knative" {
 		kh.getServiceKnative(c, &isvc, nodes, namespace)

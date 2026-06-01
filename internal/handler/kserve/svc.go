@@ -12,31 +12,58 @@ import (
 
 	"github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/pkg/log"
+	"github.com/kserve-nexus/pkg/utils"
 )
 
-type SvcDepPod struct {
-	Svc    *corev1.Service
-	Deploy []*appsv1.Deployment
-	Pod    map[string]*corev1.PodList
+// service、develop、pod 对应关系
+type Service struct {
+	Svc        *corev1.Service            // service
+	Deploy     []*appsv1.Deployment       // deployment
+	Pod        map[string]*corev1.PodList // deployment pods
+	Autoscaler *Autoscaler
+
+	Name      string
+	Namespace string
+	IsvcName  string
 }
 
-// getSvcDep 获取 service、deployment、pods
-func GetSvcDep(ctx context.Context, kc client.Client, name, namespace string) *SvcDepPod {
-	sdp := SvcDepPod{
-		nil, make([]*appsv1.Deployment, 0), make(map[string]*corev1.PodList),
+// service、develop、pod 转换成图结构
+func (s *Service) ToGraphNode(ctx context.Context, nodes *GraphNodeMap, belong *GraphNode, parent ...*GraphNode) (*GraphNode, *GraphNode) {
+	aHead, aTail := s.Autoscaler.ToGraphNode(nodes, belong, parent...)
+	svcObject := nodes.AddNodes(s.Name, s.Namespace, utils.GetCrdKey("svc"), GetServiceStatus(s.Svc), belong, aTail)
+	for i := range s.Deploy {
+		depObject := nodes.AddNodes(s.Deploy[i].Name, s.Namespace, handler.GetCrdKey("deploy"), GetDepStatus(s.Deploy[i]), svcObject, svcObject)
+		if pods, ok := s.Pod[s.Deploy[i].Name]; ok && pods != nil {
+			for j := range pods.Items {
+				_ = nodes.AddNodes(pods.Items[j].Name, s.Namespace, handler.GetCrdKey("pod"), GetPodStatus(&pods.Items[i]), svcObject, depObject)
+			}
+		}
+	}
+	return aHead, nil
+}
+
+// NewService 获取 service、deployment、pods
+func NewService(ctx context.Context, kc client.Client, isvcName, name, namespace string, ac ksvcconstants.AutoscalerClassType) *Service {
+	sdp := Service{
+		Svc: nil, Deploy: make([]*appsv1.Deployment, 0), Pod: make(map[string]*corev1.PodList), Autoscaler: NewAutoscaler(ctx, kc, ac, isvcName, name, namespace),
 	}
 
+	// 获取 service 信息
 	svc := &corev1.Service{}
 	if err := kc.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, svc); err != nil {
 		log.Logger.Error(err, "获取 service 失败", "name", name, "namespace", namespace)
 		return &sdp
 	}
 	sdp.Svc = svc
+
+	// 根据标签获取deployment
 	dep := &appsv1.DeploymentList{}
 	if err := kc.List(ctx, dep, client.InNamespace(namespace), client.MatchingLabels(svc.Spec.Selector)); err != nil {
 		log.Logger.Error(err, "获取 deployment 失败", "name", name, "namespace", namespace)
 		return &sdp
 	}
+
+	// 获取每个deployment对应的pods
 	for i := range dep.Items {
 		sdp.Deploy = append(sdp.Deploy, &dep.Items[i])
 		pods := &corev1.PodList{}
@@ -77,31 +104,4 @@ func GetDepStatus(dep *appsv1.Deployment) GraphNodeStatus {
 		return GraphNodeStatusTrue
 	}
 	return GraphNodeStatusFalse
-}
-
-// service、develop、pod关系
-func (kh *Handler) getSvcDepShow(ctx context.Context, isvcName, name, namespace string, parent *GraphNode, ac ksvcconstants.AutoscalerClassType, nodes GraphNodeMap) *GraphNode {
-	var hpaObject *GraphNode = nil
-	if ac != "" {
-		_, hpaStatus, _, kedaStatus := kh.getAutoscaler(ctx, ac, isvcName, name, namespace)
-		hpaObject = nodes.AddNodes(name, namespace, handler.GetCrdKey("hpa"), hpaStatus, nil)
-		if ac == ksvcconstants.AutoscalerClassKeda {
-			kedaObject := nodes.AddNodes(name, namespace, "ScaledObject", kedaStatus, nil, parent)
-			hpaObject.AddParent(kedaObject)
-		} else {
-			hpaObject.AddParent(parent)
-		}
-	}
-
-	sdp := GetSvcDep(ctx, kh.kc, name, namespace)
-	svcObject := nodes.AddNodes(name, namespace, handler.GetCrdKey("svc"), GetServiceStatus(sdp.Svc), nil, hpaObject, parent)
-	for i := range sdp.Deploy {
-		depObject := nodes.AddNodes(sdp.Deploy[i].Name, namespace, handler.GetCrdKey("deploy"), GetDepStatus(sdp.Deploy[i]), svcObject, svcObject)
-		if pods, ok := sdp.Pod[sdp.Deploy[i].Name]; ok && pods != nil {
-			for j := range pods.Items {
-				_ = nodes.AddNodes(pods.Items[j].Name, namespace, handler.GetCrdKey("pod"), GetPodStatus(&pods.Items[i]), svcObject, depObject)
-			}
-		}
-	}
-	return svcObject
 }

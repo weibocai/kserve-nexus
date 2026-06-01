@@ -1,8 +1,10 @@
 apiVersion: "serving.kserve.io/v1beta1"
 kind: "InferenceService"
 metadata:
-  name: "sklearn-iris"
+  name: "sklearn-iris-standard"
   namespace: kserve-test
+  annotations:
+    serving.kserve.io/deploymentMode: Standard
 spec:
   predictor:
     model:
