@@ -242,12 +242,12 @@ func (kh *Handler) GetIsvc(c *gin.Context) {
 		return
 	}
 	response["deploymentMode"] = dm
-	var nodes GraphNodeMap = make(map[string]*GraphNode)
+	var nodes GraphNodeMap
 	if dm == "Standard" {
 		nodes = *Standard2GraphNode(c.Request.Context(), kh.kc, &isvc, ingressConfig)
 	}
 	if dm == "Knative" {
-		kh.getServiceKnative(c, &isvc, nodes, namespace)
+		nodes = KnativeIsvc2GraphNode(c, kh.kc, &isvc, ingressConfig)
 	}
 	response["nodes"], response["edges"] = GraphNode2graphNode(nodes)
 	middleware.SuccessJson(c, response)

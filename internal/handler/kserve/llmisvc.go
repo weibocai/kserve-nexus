@@ -13,9 +13,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	igwapi "sigs.k8s.io/gateway-api-inference-extension/api/v1"
 
-	"github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/internal/middleware"
 	"github.com/kserve-nexus/pkg/log"
+	"github.com/kserve-nexus/pkg/utils"
 )
 
 func (kh *Handler) getLLMIsvc(ctx context.Context, namespace string) ([]map[string]string, error) {
@@ -77,7 +77,7 @@ func (kh *Handler) ListLLMIsvc(c *gin.Context) {
 
 func (kh *Handler) getInferencePoolsShow(ctx context.Context, isvcName, name, namespace string, parentHr *GraphNode, nodes GraphNodeMap) {
 	ip := &igwapi.InferencePool{}
-	ipObj := nodes.AddNodes(name, namespace, handler.GetCrdKey("ip"), GraphNodeStatusTrue, nil, parentHr)
+	ipObj := nodes.AddNodes(name, namespace, utils.GetCrdKey("ip"), GraphNodeStatusTrue, nil, parentHr)
 	if err := kh.kc.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ip); err != nil {
 		ipObj.SetStatus(GraphNodeStatusFalse)
 		log.Logger.Error(err, "获取 InferencePool 失败", "Namespace", namespace, "Name", name)
@@ -87,7 +87,7 @@ func (kh *Handler) getInferencePoolsShow(ctx context.Context, isvcName, name, na
 	}
 	if ip.Spec.EndpointPickerRef.Kind != "Service" {
 		log.Logger.Info("获取 InferencePool Service 失败", "kind", ip.Spec.EndpointPickerRef.Kind, "Namespace", namespace, "Name", name)
-		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, handler.GetCrdKey("svc"), GraphNodeStatusFalse, nil, ipObj)
+		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, utils.GetCrdKey("svc"), GraphNodeStatusFalse, nil, ipObj)
 		return
 	}
 
@@ -120,7 +120,7 @@ func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namesp
 	if aig == nil {
 		return
 	}
-	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, handler.GetCrdKey(""), GraphNodeStatusFalse, nil)
+	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, utils.GetCrdKey(""), GraphNodeStatusFalse, nil)
 	hrObj, _ := kh.getHTTPRouteShow(ctx, isvcName, name, namespace, "", nodes)
 	hrObj.AddParent(aigObj)
 }

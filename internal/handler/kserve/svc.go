@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/kserve-nexus/internal/handler"
 	"github.com/kserve-nexus/pkg/log"
 	"github.com/kserve-nexus/pkg/utils"
 )
@@ -32,10 +31,10 @@ func (s *Service) ToGraphNode(ctx context.Context, nodes *GraphNodeMap, belong *
 	aHead, aTail := s.Autoscaler.ToGraphNode(nodes, belong, parent...)
 	svcObject := nodes.AddNodes(s.Name, s.Namespace, utils.GetCrdKey("svc"), GetServiceStatus(s.Svc), belong, aTail)
 	for i := range s.Deploy {
-		depObject := nodes.AddNodes(s.Deploy[i].Name, s.Namespace, handler.GetCrdKey("deploy"), GetDepStatus(s.Deploy[i]), svcObject, svcObject)
+		depObject := nodes.AddNodes(s.Deploy[i].Name, s.Namespace, utils.GetCrdKey("deploy"), GetDepStatus(s.Deploy[i]), svcObject, svcObject)
 		if pods, ok := s.Pod[s.Deploy[i].Name]; ok && pods != nil {
 			for j := range pods.Items {
-				_ = nodes.AddNodes(pods.Items[j].Name, s.Namespace, handler.GetCrdKey("pod"), GetPodStatus(&pods.Items[i]), svcObject, depObject)
+				_ = nodes.AddNodes(pods.Items[j].Name, s.Namespace, utils.GetCrdKey("pod"), GetPodStatus(&pods.Items[i]), svcObject, depObject)
 			}
 		}
 	}

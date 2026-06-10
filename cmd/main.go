@@ -3,7 +3,6 @@ package main
 import (
 	_ "github.com/kserve-nexus/docs"
 	"github.com/kserve-nexus/internal/app"
-	_ "github.com/kserve-nexus/internal/handler"
 )
 
 /*

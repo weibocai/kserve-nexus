@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 )
@@ -74,4 +77,16 @@ func DeleteK8sYaml(path, namespace string, c client.Client) error {
 		}
 	}
 	return nil
+}
+
+// SplitName2GetObject 拆分字符串，查找crd对象
+func SplitName2GetObject(ctx context.Context, kc client.Client, obj client.Object, nameIndex, namespaceIndex int, fullName, sep string) (string, string, error) {
+	names := strings.Split(fullName, sep)
+	if len(names) < max(nameIndex, namespaceIndex) {
+		return "", "", fmt.Errorf("invalid name %s", fullName)
+	}
+	if err := kc.Get(ctx, types.NamespacedName{Name: names[nameIndex], Namespace: names[namespaceIndex]}, obj); err != nil {
+		return names[nameIndex], names[namespaceIndex], err
+	}
+	return names[nameIndex], names[namespaceIndex], nil
 }
