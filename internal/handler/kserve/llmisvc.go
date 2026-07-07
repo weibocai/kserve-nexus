@@ -2,13 +2,11 @@ package kserve
 
 import (
 	"context"
-	"fmt"
 
 	epv1alpha1 "github.com/envoyproxy/ai-gateway/api/v1alpha1"
 	"github.com/gin-gonic/gin"
 	ksvcv1alpha2 "github.com/kserve/kserve/pkg/apis/serving/v1alpha2"
 	ksvcllmisvc "github.com/kserve/kserve/pkg/controller/v1alpha2/llmisvc"
-	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	igwapi "sigs.k8s.io/gateway-api-inference-extension/api/v1"
@@ -139,28 +137,28 @@ func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namesp
 // @Failure 500 {object} middleware.Response "请求异常"
 // @Router /kserve/llmisvc/{name} [get]
 func (kh *Handler) GetLLMIsvc(c *gin.Context) {
-	namespace := c.Query("namespace")
-	name := c.Param("name")
-	if namespace == "" || name == "" {
-		middleware.ErrorJson(c, nil, fmt.Sprintf("参数错误：name=%s; namespace=%s", name, namespace))
-		return
-	}
-	response := make(map[string]any)
-	var llmisvc ksvcv1alpha2.LLMInferenceService
-	if err := kh.kc.Get(c.Request.Context(), types.NamespacedName{Namespace: namespace, Name: name}, &llmisvc); err != nil {
-		middleware.ErrorJson(c, err, "")
-		return
-	}
-	response["llmisvc"] = llmisvc
-	response["status"] = GraphNodeStatusFalse
-	for j := range llmisvc.Status.Conditions {
-		if llmisvc.Status.Conditions[j].Type == apis.ConditionReady {
-			response["status"] = string(llmisvc.Status.Conditions[j].Status)
-			break
-		}
-	}
-	var nodes GraphNodeMap = make(map[string]*GraphNode)
-	kh.getHTTPRouteShow(c.Request.Context(), llmisvc.Name, llmisvc.Name+"-kserve-route", namespace, "", nodes)
-	response["nodes"], response["edges"] = GraphNode2graphNode(nodes)
-	middleware.ResponseJson(c, response, nil)
+	// namespace := c.Query("namespace")
+	// name := c.Param("name")
+	// if namespace == "" || name == "" {
+	// 	middleware.ErrorJson(c, nil, fmt.Sprintf("参数错误：name=%s; namespace=%s", name, namespace))
+	// 	return
+	// }
+	// response := make(map[string]any)
+	// var llmisvc ksvcv1alpha2.LLMInferenceService
+	// if err := kh.kc.Get(c.Request.Context(), types.NamespacedName{Namespace: namespace, Name: name}, &llmisvc); err != nil {
+	// 	middleware.ErrorJson(c, err, "")
+	// 	return
+	// }
+	// response["llmisvc"] = llmisvc
+	// response["status"] = GraphNodeStatusFalse
+	// for j := range llmisvc.Status.Conditions {
+	// 	if llmisvc.Status.Conditions[j].Type == apis.ConditionReady {
+	// 		response["status"] = string(llmisvc.Status.Conditions[j].Status)
+	// 		break
+	// 	}
+	// }
+	// var nodes GraphNodeMap = make(map[string]*GraphNode)
+	// kh.getHTTPRouteShow(c.Request.Context(), llmisvc.Name, llmisvc.Name+"-kserve-route", namespace, "", nodes)
+	// response["nodes"], response["edges"] = GraphNode2graphNode(nodes)
+	// middleware.ResponseJson(c, response, nil)
 }

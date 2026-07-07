@@ -30,7 +30,7 @@ func (kh *Handler) getStoragePvc(ctx context.Context, storageUri, namespace stri
 	pv := &corev1.PersistentVolume{}
 	// 查找pv
 	pvObj := nodes.AddNodes(pvName, "", utils.GetCrdKey("pv"), GraphNodeStatusTrue, nil)
-	pvcObj.AddParent(pvObj)
+	nodes.AddEdges(pvcObj, "PV", pvObj)
 	if err := kh.kc.Get(ctx, types.NamespacedName{Name: pvName, Namespace: namespace}, pv); err != nil {
 		pvcObj.SetStatus(GraphNodeStatusFalse)
 		log.Logger.Error(err, "Failed to get pv")
@@ -38,7 +38,7 @@ func (kh *Handler) getStoragePvc(ctx context.Context, storageUri, namespace stri
 	}
 	// 查找 StorageClass
 	scObj := nodes.AddNodes("未知", "", utils.GetCrdKey("sc"), GraphNodeStatusTrue, nil)
-	pvObj.AddParent(scObj)
+	nodes.AddEdges(pvObj, "StorageClass", scObj)
 	if pvc.Spec.StorageClassName != nil {
 		sc := &storagev1.StorageClass{}
 		scObj.Name = *pvc.Spec.StorageClassName

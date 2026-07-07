@@ -70,7 +70,7 @@ func VirtualService2GraphNode(ctx context.Context, kc client.Client, vs *istiocl
 			return nil, tail
 		}
 		for _, gw := range gwNodeMap {
-			tail.AddParent(gw)
+			nodes.AddEdges(tail, "", gw)
 		}
 		return nil, tail
 	}
@@ -87,7 +87,7 @@ func VirtualService2GraphNode(ctx context.Context, kc client.Client, vs *istiocl
 			} else {
 				gwNodeMap[gwName] = nodes.AddNodes(n, ns, utils.GetCrdKey("gw"), GetIstioGatewayStatus(nil), belong)
 			}
-			tail.AddParent(gwNodeMap[gwName])
+			nodes.AddEdges(tail, "", gwNodeMap[gwName])
 		}
 	}
 	return nil, tail
@@ -110,13 +110,11 @@ func (k *KnativeRevision) ToGraphNode(ctx context.Context, nodes *GraphNodeMap, 
 	kpa := nodes.AddNodes(k.Name, k.Namespace, utils.GetCrdKey("kpa"), GetKpaStatus(), belong)
 	sl := nodes.AddNodes(k.Name, k.Namespace, utils.GetCrdKey("sl"), GetServerlessServiceStatus(), kpa)
 	svc := nodes.AddNodes(k.Name, k.Namespace, utils.GetCrdKey("svc"), GetServiceStatus(k.Service), kpa, parent...)
-	svc.AddParent(sl)
-
+	nodes.AddEdges(svc, "", sl)
 	nodes.AddNodes(k.Name, k.Namespace, utils.GetCrdKey("svc"), GetServiceStatus(k.Actor), nil, svc)
 	psvc := nodes.AddNodes(k.Name, k.Namespace, utils.GetCrdKey("svc"), GetServiceStatus(k.PrivateService), kpa, parent...)
-	psvc.AddParent(svc)
+	nodes.AddEdges(psvc, "", svc)
 	deploy := nodes.AddNodes(k.Name, k.Namespace, utils.GetCrdKey("deploy"), GetDepStatus(k.Deployment), kpa, svc, psvc)
-
 	return sl, deploy
 }
 
@@ -342,7 +340,7 @@ type knateieIsvc struct {
 
 // KnativeIsvc2GraphNode 将 Knative Isvc 转换成 GraphNode
 func KnativeIsvc2GraphNode(ctx context.Context, kc client.Client, isvc *ksvcv1beta1.InferenceService, ingressConfig *ksvcv1beta1.IngressConfig) GraphNodeMap {
-	nodes := make(GraphNodeMap)
+	nodes := GraphNodeMap{Edges: make(map[string]*GraphEdge), Nodes: make(map[string]*GraphNode)}
 	s := &knateieIsvc{
 		ctx: ctx, kc: kc, isvc: isvc,
 	}

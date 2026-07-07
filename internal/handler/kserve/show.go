@@ -1,9 +1,11 @@
 package kserve
 
 import (
-	"strconv"
+	"encoding/json"
+)
 
-	ksvcv1alpha1 "github.com/kserve/kserve/pkg/apis/serving/v1alpha1"
+const (
+	InferenceGraphNodeKind = "InferenceGraph"
 )
 
 type GraphNodeStatus string
@@ -15,21 +17,34 @@ const (
 	GraphNodeStatusWarning GraphNodeStatus = "Warning"
 )
 
-type graphNodeKind string
-
-const (
-	graphNodeKindStep graphNodeKind = "graphStep"
-	graphNodeKindNode graphNodeKind = "graphNode"
-)
-
 type GraphNodeColor string
 
 const (
-	GraphNodeColorTrue    GraphNodeColor = `"#88ff0022"`
-	GraphNodeColorFalse   GraphNodeColor = `"#FF0000"`
-	GraphNodeColorUnknown GraphNodeColor = `"#808080"`
-	GraphNodeColorWarning GraphNodeColor = `"#FFFF00"`
+	GraphNodeColorTrue           GraphNodeColor = `"#88ff0022"`
+	GraphNodeColorFalse          GraphNodeColor = `"#FF0000"`
+	GraphNodeColorUnknown        GraphNodeColor = `"#808080"`
+	GraphNodeColorWarning        GraphNodeColor = `"#FFFF00"`
+	GraphNodeColorInferenceGraph GraphNodeColor = `"#0dff00"`
 )
+
+// GraphNodeStatus2GraphNodeColor 节点状态转换成颜色
+func GraphNodeStatus2GraphNodeColor(status GraphNodeStatus, kind string) GraphNodeColor {
+	if kind == InferenceGraphNodeKind {
+		return GraphNodeColorInferenceGraph
+	}
+	switch status {
+	case GraphNodeStatusTrue:
+		return GraphNodeColorTrue
+	case GraphNodeStatusFalse:
+		return GraphNodeColorFalse
+	case GraphNodeStatusUnknown:
+		return GraphNodeColorUnknown
+	case GraphNodeStatusWarning:
+		return GraphNodeColorWarning
+	default:
+		return GraphNodeColorUnknown
+	}
+}
 
 type GraphEdge struct {
 	Id          string            `json:"id"`
@@ -42,20 +57,14 @@ type GraphEdge struct {
 
 // GraphNode 图展示节点
 type GraphNode struct {
-	Pk          string            `json:"id"`        // 节点唯一标识
-	Namespace   string            `json:"namespace"` // 命名空间
-	Name        string            `json:"name"`      // 节点名称
-	Kind        string            `json:"kind"`      // 节点类型
-	Parent      []*GraphNode      // 父级节点
-	Belong      *GraphNode        `json:"belong,omitempty"`      // 嵌套图
+	Pk          string            `json:"id"`                    // 节点唯一标识
+	Namespace   string            `json:"namespace"`             // 命名空间
+	Name        string            `json:"name"`                  // 节点名称
+	Kind        string            `json:"kind"`                  // 节点类型
+	Belong      string            `json:"belong,omitempty"`      // 嵌套图
 	Color       GraphNodeColor    `json:"color"`                 // 节点颜色
 	Status      GraphNodeStatus   `json:"status"`                // 节点状态
 	Description map[string]string `json:"description,omitempty"` // 节点描述
-}
-
-// AddParent 添加父级节点
-func (s *GraphNode) AddParent(p ...*GraphNode) {
-	s.Parent = append(s.Parent, p...)
 }
 
 // SetName 设置节点名称
@@ -78,88 +87,71 @@ func (s *GraphNode) SetStatus(status GraphNodeStatus) {
 	}
 }
 
-// ToGraphEdge 添加节点的关系：边、包含
-func (s *GraphNode) ToGraphEdge(hadEdgeAdd map[string]bool) []*GraphEdge {
-	edges := make([]*GraphEdge, 0)
-	for index := range s.Parent {
-		if s.Parent[index] == nil {
-			continue
-		}
-		pk := s.Parent[index].Pk + "&&" + s.Pk
-		if _, ok := hadEdgeAdd[pk]; ok {
-			continue
-		}
-		hadEdgeAdd[pk] = true
-		edge := &GraphEdge{Id: pk, Source: s.Parent[index].Pk, Target: s.Pk, Kind: string(s.Parent[index].Status)}
-		if label, ok := s.Description["eLabel"]; ok {
-			edge.Label = label
-		}
-		edges = append(edges, edge)
+// GraphNodeMap 节点结构
+type GraphNodeMap struct {
+	Nodes map[string]*GraphNode // 点的集合
+	Edges map[string]*GraphEdge // 边的集合
+}
+
+// GetNodes 获取所有节点
+func (s *GraphNodeMap) GetNodes() []*GraphNode {
+	nodes := make([]*GraphNode, len(s.Nodes))
+	index := 0
+	for _, obj := range s.Nodes {
+		nodes[index] = obj
+		index++
+	}
+	return nodes
+}
+
+// GetEdges 获取所有边列表
+func (s *GraphNodeMap) GetEdges() []*GraphEdge {
+	edges := make([]*GraphEdge, len(s.Edges))
+	index := 0
+	for _, obj := range s.Edges {
+		edges[index] = obj
+		index++
 	}
 	return edges
 }
 
-// GraphNodeMap 节点结构
-type GraphNodeMap map[string]*GraphNode
+// MarshalJSON 节点+边结构转换成json
+func (s *GraphNodeMap) MarshalJSON() ([]byte, error) {
 
-// AddNodes 添加节点
-func (s *GraphNodeMap) AddNodes(name, namespace, kind string, status GraphNodeStatus, belong *GraphNode, parent ...*GraphNode) *GraphNode {
-	pk := namespace + "_" + name + "_" + kind
-	if obj, ok := (*s)[pk]; !ok {
-		(*s)[pk] = &GraphNode{Pk: pk, Namespace: namespace, Name: name, Kind: kind, Status: status, Parent: parent, Belong: belong}
-	} else {
-		if belong != nil {
-			obj.Belong = belong
-		}
-		obj.AddParent(parent...)
-	}
-	return (*s)[pk]
+	return json.Marshal(map[string]interface{}{"nodes": s.GetNodes(), "edges": s.GetEdges()})
 }
-func (s *GraphNodeMap) AddGraph(namespace string, step ksvcv1alpha1.InferenceStep, nodeType ksvcv1alpha1.InferenceRouterType, parent ...*GraphNode) *GraphNode {
-	var name, kind = "", graphNodeKindStep
-	if step.StepName != "" {
-		name = step.StepName
-	} else if step.NodeName != "" {
-		name = step.NodeName
-		kind = graphNodeKindNode
-	} else if step.ServiceName != "" {
-		name = step.ServiceName
-	} else {
-		name = ""
-	}
-	_kind := string(kind)
-	var pk = namespace + ";" + name + ";" + _kind
-	obj, ok := (*s)[pk]
-	if !ok {
-		(*s)[pk] = &GraphNode{Pk: pk, Namespace: namespace, Name: name, Kind: _kind, Status: GraphNodeStatusTrue, Parent: parent, Description: make(map[string]string)}
-		obj = (*s)[pk]
-	} else {
-		obj.AddParent(parent...)
-	}
-	eLabel := ""
-	if nodeType == ksvcv1alpha1.Switch || (nodeType == ksvcv1alpha1.Sequence && step.Condition != "") {
-		eLabel = "Condition: " + step.Condition
-	}
-	if nodeType == ksvcv1alpha1.Splitter {
-		eLabel = eLabel + "\nWeight: " + strconv.FormatInt(*step.Weight, 10) + "%"
-	}
-	if eLabel != "" {
-		for i := range parent {
-			obj.Description[parent[i].Pk] += "\n" + eLabel
-		}
-	}
 
+func (s *GraphNodeMap) AddEdges(target *GraphNode, label string, parents ...*GraphNode) {
+	for _, p := range parents {
+		if p == nil {
+			continue
+		}
+		pk := p.Pk + "&&" + target.Pk
+		if obj, ok := s.Edges[pk]; ok {
+			if label != "" {
+				obj.Label = label
+			}
+			continue
+		}
+		s.Edges[pk] = &GraphEdge{Id: pk, Source: p.Pk, Target: target.Pk, Label: label}
+	}
+}
+
+// AddNodes 添加节点，如果边有标签，则使用这个函数
+func (s *GraphNodeMap) AddNodesLabel(name, namespace, kind, label string, status GraphNodeStatus, belong *GraphNode, parent ...*GraphNode) *GraphNode {
+	pk := namespace + "_" + name + "_" + kind
+	if _, ok := s.Nodes[pk]; !ok {
+		s.Nodes[pk] = &GraphNode{Pk: pk, Namespace: namespace, Name: name, Kind: kind, Status: status, Description: make(map[string]string)}
+	}
+	obj := s.Nodes[pk]
+	if belong != nil {
+		obj.Belong = belong.Pk
+	}
+	s.AddEdges(obj, label, parent...)
 	return obj
 }
 
-func GraphNode2graphNode(objs GraphNodeMap) ([]*GraphNode, []*GraphEdge) {
-	hadEdgeAdd := make(map[string]bool)
-	nodes := make([]*GraphNode, 0)
-	edges := make([]*GraphEdge, 0)
-
-	for _, obj := range objs {
-		nodes = append(nodes, obj)
-		edges = append(edges, obj.ToGraphEdge(hadEdgeAdd)...)
-	}
-	return nodes, edges
+// AddNodes 添加节点，如果边没有标签，则使用这个函数
+func (s *GraphNodeMap) AddNodes(name, namespace, kind string, status GraphNodeStatus, belong *GraphNode, parent ...*GraphNode) *GraphNode {
+	return s.AddNodesLabel(name, namespace, kind, "", status, belong, parent...)
 }
