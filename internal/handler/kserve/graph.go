@@ -133,9 +133,9 @@ func Graph2Show(name, namespace string, graph ksvcv1alpha1.InferenceGraphSpec, s
 
 		gn := InferenceGraph2GraphNode(namespace, currentNode.Steps[0], nodeMap)
 		InferenceGraph2GraphEdge(currentNode, 0, graphNode, gn, nodeMap)
-		for i := 0; i < len(currentNode.Nodes); i++ {
+		for i := 0; i < len(currentNode.Steps); i++ {
 			var succ *GraphNode
-			if i == len(currentNode.Nodes)-1 {
+			if i == len(currentNode.Steps)-1 {
 				succ = successor
 			} else {
 				succ = InferenceGraph2GraphNode(namespace, currentNode.Steps[i+1], nodeMap)
