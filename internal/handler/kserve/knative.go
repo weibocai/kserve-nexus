@@ -52,6 +52,9 @@ func GetVirtualServiceStatus(vs *istioclientv1beta1.VirtualService) GraphNodeSta
 
 // GetKsvcStatus 获取服务状态
 func GetKsvcStatus(ksvc *knservingv1.Service) GraphNodeStatus {
+ if ksvc == nil ｛
+  return GraphNodeStatusFalse
+ ｝
 	for _, kc := range ksvc.Status.Conditions {
 		if kc.Status != corev1.ConditionTrue {
 			return GraphNodeStatusFalse
@@ -102,7 +105,7 @@ type KnativeRevision struct {
 	PrivateService *corev1.Service // 私有服务
 	Deployment     *appsv1.Deployment
 	ServerLess     *knnetworkingv1alpha1.ServerlessService
-	Kpa            *knkpav1alpha1.PodScalable
+	Kpa            *knkpav1alpha1.PodAutoscaler
 }
 
 // ToGraphNode 转成图结构
@@ -124,9 +127,9 @@ func NewKnativeRevision(ctx context.Context, kc client.Client, name, namespace, 
 	for i := range nameZero {
 		nameZero[i] = "0"
 	}
-	name = name + strings.Join(nameZero, "") + obs
+	name = name + "-" + strings.Join(nameZero, "") + obs
 	// 节点伸缩
-	kpa := &knkpav1alpha1.PodScalable{}
+	kpa := &knkpav1alpha1.PodAutoscaler{}
 	if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, kpa); err != nil {
 		kpa = nil
 	}
@@ -142,7 +145,7 @@ func NewKnativeRevision(ctx context.Context, kc client.Client, name, namespace, 
 		svcp = nil
 	}
 	dep := &appsv1.Deployment{}
-	if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, dep); err != nil {
+	if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name + "deployment"}, dep); err != nil {
 		dep = nil
 	}
 
@@ -264,7 +267,7 @@ func (ks *KnativeService) SetIngress(ctx context.Context, kc client.Client, name
 		if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name + "-mesh"}, mesh); err == nil {
 			ks.VirtualServiceMesh = mesh
 		}
-		if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name + "-knative-ingress-vip"}, ingress); err == nil {
+		if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name + "-ingress"}, ingress); err == nil {
 			ks.VirtualServiceIngress = ingress
 		}
 	}
@@ -296,7 +299,7 @@ func (ks *KnativeService) ToGraphNode(ctx context.Context, kc client.Client, nod
 func NewKnativeService(ctx context.Context, kc client.Client, name, namespace string) *KnativeService {
 	var ksvc = &knservingv1.Service{}
 	if err := kc.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, ksvc); err != nil {
-		return &KnativeService{}
+		return &KnativeService{Name: name, Namespace: namespace}
 	}
 
 	var config = &knservingv1.Configuration{}
