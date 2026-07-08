@@ -83,7 +83,7 @@ func InferenceGraph2GraphNode(namespace string, step ksvcv1alpha1.InferenceStep,
 	if step.NodeName == "" {
 		node = nodeMap.AddNodes(GetStepServiceName(step), namespace, utils.GetCrdKey("isvc"), GraphNodeStatusTrue, nil)
 	} else {
-		node = nodeMap.AddNodes(step.StepName, namespace, InferenceGraphNodeKind, GraphNodeStatusTrue, nil)
+		node = nodeMap.AddNodes(step.NodeName, namespace, InferenceGraphNodeKind, GraphNodeStatusTrue, nil)
 	}
 	if step.StepName != "" {
 		node.Description["StepName"] = step.StepName
@@ -117,7 +117,7 @@ func GraphStep2Show(namespace string, graph ksvcv1alpha1.InferenceGraphSpec, ste
 }
 
 // Graph2Show 推理图转换成GraphNode
-func Graph2Show(name, namespace string, graph ksvcv1alpha1.InferenceGraphSpec, successor, graphNode *GraphNode, nodeMap *GraphNodeMap) *GraphNode {
+func Graph2Show(name, namespace string, graph ksvcv1alpha1.InferenceGraphSpec, successor, graphNode *GraphNode, nodeMap *GraphNodeMap) {
 	currentNode := graph.Nodes[name]
 	if graphNode == nil {
 		graphNode = nodeMap.AddNodes(name, namespace, InferenceGraphNodeKind, GraphNodeStatusTrue, nil)
@@ -126,11 +126,10 @@ func Graph2Show(name, namespace string, graph ksvcv1alpha1.InferenceGraphSpec, s
 		if successor != nil {
 			nodeMap.AddEdges(successor, "", graphNode)
 		}
-		return graphNode
+		return
 	}
 	// 顺序执行
 	if currentNode.RouterType == ksvcv1alpha1.Sequence {
-
 		gn := InferenceGraph2GraphNode(namespace, currentNode.Steps[0], nodeMap)
 		InferenceGraph2GraphEdge(currentNode, 0, graphNode, gn, nodeMap)
 		for i := 0; i < len(currentNode.Steps); i++ {
@@ -141,20 +140,19 @@ func Graph2Show(name, namespace string, graph ksvcv1alpha1.InferenceGraphSpec, s
 				succ = InferenceGraph2GraphNode(namespace, currentNode.Steps[i+1], nodeMap)
 			}
 			GraphStep2Show(namespace, graph, currentNode.Steps[i], succ, nodeMap)
-
 		}
-		return graphNode
+		return
 	}
 	for i := range currentNode.Steps {
 		gn := InferenceGraph2GraphNode(namespace, currentNode.Steps[i], nodeMap)
 		InferenceGraph2GraphEdge(currentNode, i, graphNode, gn, nodeMap)
-		GraphStep2Show(namespace, graph, currentNode.Steps[i], nil, nodeMap)
+		GraphStep2Show(namespace, graph, currentNode.Steps[i], successor, nodeMap)
 	}
-	return graphNode
+	return
 }
 
 // GraphDetail 推理图详情
-func (kh *Handler) GraphDetail(ctx context.Context, namespace string, name string) (*ksvcv1alpha1.InferenceGraph, ksvcconstants.DeploymentModeType, *GraphNodeMap, GraphNodeStatus, error) {
+func (kh *Handler) GraphDetail(ctx context.Context, name, namespace string) (*ksvcv1alpha1.InferenceGraph, ksvcconstants.DeploymentModeType, *GraphNodeMap, GraphNodeStatus, error) {
 	graph := ksvcv1alpha1.InferenceGraph{}
 	ready := GraphNodeStatusFalse
 	if err := kh.kc.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, &graph); err != nil {
@@ -183,11 +181,11 @@ func (kh *Handler) GraphDetail(ctx context.Context, namespace string, name strin
 		svc := NewService(ctx, kh.kc, graph.Name, graph.Name, graph.Namespace, "")
 		tail, _ = svc.ToGraphNode(ctx, &nodes, nil)
 	} else {
-		ksvc := NewKnativeRevision(ctx, kh.kc, graph.Name, graph.Namespace, "")
-		tail, _ = ksvc.ToGraphNode(ctx, &nodes, nil)
+		ksvc := NewKnative(ctx, kh.kc, graph.Name, graph.Namespace, "")
+		tail, _ = ksvc.ToGraphNode(ctx, kh.kc, &nodes, nil)
 	}
-
-	head := Graph2Show(graph.Name, graph.Namespace, graph.Spec, tail, nil, &nodes)
+ gn := InferenceGraph2GraphNode(namespace, currentNode.Steps[0], nodeMap)
+	Graph2Show(, graph.Namespace, graph.Spec, tail, gn, &nodes)
 	nodes.AddEdges(head, "", tail)
 	return &graph, dm, &nodes, ready, nil
 }
