@@ -81,7 +81,7 @@ func GetStepServiceName(step ksvcv1alpha1.InferenceStep) string {
 func InferenceGraph2GraphNode(namespace string, step ksvcv1alpha1.InferenceStep, nodeMap *GraphNodeMap) *GraphNode {
 	var node *GraphNode
 	if step.NodeName == "" {
-		node = nodeMap.AddNodes(step.StepName, namespace, utils.GetCrdKey("isvc"), GraphNodeStatusTrue, nil)
+		node = nodeMap.AddNodes(GetStepServiceName(step), namespace, utils.GetCrdKey("isvc"), GraphNodeStatusTrue, nil)
 	} else {
 		node = nodeMap.AddNodes(step.StepName, namespace, InferenceGraphNodeKind, GraphNodeStatusTrue, nil)
 	}
@@ -113,7 +113,7 @@ func GraphStep2Show(namespace string, graph ksvcv1alpha1.InferenceGraphSpec, ste
 		return
 	}
 	gn := InferenceGraph2GraphNode(namespace, step, nodeMap)
-	nodeMap.AddEdges(gn, "", successor)
+	nodeMap.AddEdges(successor, "", gn)
 }
 
 // Graph2Show 推理图转换成GraphNode
@@ -133,9 +133,9 @@ func Graph2Show(name, namespace string, graph ksvcv1alpha1.InferenceGraphSpec, s
 
 		gn := InferenceGraph2GraphNode(namespace, currentNode.Steps[0], nodeMap)
 		InferenceGraph2GraphEdge(currentNode, 0, graphNode, gn, nodeMap)
-		for i := 0; i < len(currentNode.Steps); i++ {
+		for i := 0; i < len(currentNode.Nodes); i++ {
 			var succ *GraphNode
-			if i == len(currentNode.Steps)-1 {
+			if i == len(currentNode.Nodes)-1 {
 				succ = successor
 			} else {
 				succ = InferenceGraph2GraphNode(namespace, currentNode.Steps[i+1], nodeMap)
