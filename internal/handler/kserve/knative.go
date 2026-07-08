@@ -52,9 +52,10 @@ func GetVirtualServiceStatus(vs *istioclientv1beta1.VirtualService) GraphNodeSta
 
 // GetKsvcStatus 获取服务状态
 func GetKsvcStatus(ksvc *knservingv1.Service) GraphNodeStatus {
- if ksvc == nil ｛
-  return GraphNodeStatusFalse
- ｝
+	if ksvc == nil {
+		return GraphNodeStatusFalse
+	}
+
 	for _, kc := range ksvc.Status.Conditions {
 		if kc.Status != corev1.ConditionTrue {
 			return GraphNodeStatusFalse

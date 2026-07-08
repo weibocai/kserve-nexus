@@ -3,17 +3,12 @@ package kserve
 import (
 	"context"
 
-	epv1alpha1 "github.com/envoyproxy/ai-gateway/api/v1alpha1"
 	"github.com/gin-gonic/gin"
 	ksvcv1alpha2 "github.com/kserve/kserve/pkg/apis/serving/v1alpha2"
-	ksvcllmisvc "github.com/kserve/kserve/pkg/controller/v1alpha2/llmisvc"
 	"knative.dev/pkg/apis"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	igwapi "sigs.k8s.io/gateway-api-inference-extension/api/v1"
 
 	"github.com/kserve-nexus/internal/middleware"
-	"github.com/kserve-nexus/pkg/log"
-	"github.com/kserve-nexus/pkg/utils"
 )
 
 func (kh *Handler) getLLMIsvc(ctx context.Context, namespace string) ([]map[string]string, error) {
@@ -74,53 +69,53 @@ func (kh *Handler) ListLLMIsvc(c *gin.Context) {
 }
 
 func (kh *Handler) getInferencePoolsShow(ctx context.Context, isvcName, name, namespace string, parentHr *GraphNode, nodes GraphNodeMap) {
-	ip := &igwapi.InferencePool{}
-	ipObj := nodes.AddNodes(name, namespace, utils.GetCrdKey("ip"), GraphNodeStatusTrue, nil, parentHr)
-	if err := kh.kc.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ip); err != nil {
-		ipObj.SetStatus(GraphNodeStatusFalse)
-		log.Logger.Error(err, "获取 InferencePool 失败", "Namespace", namespace, "Name", name)
-	}
-	if !ksvcllmisvc.IsInferencePoolReady(ip) {
-		ipObj.SetStatus(GraphNodeStatusFalse)
-	}
-	if ip.Spec.EndpointPickerRef.Kind != "Service" {
-		log.Logger.Info("获取 InferencePool Service 失败", "kind", ip.Spec.EndpointPickerRef.Kind, "Namespace", namespace, "Name", name)
-		nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, utils.GetCrdKey("svc"), GraphNodeStatusFalse, nil, ipObj)
-		return
-	}
+	// ip := &igwapi.InferencePool{}
+	// ipObj := nodes.AddNodes(name, namespace, utils.GetCrdKey("ip"), GraphNodeStatusTrue, nil, parentHr)
+	// if err := kh.kc.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ip); err != nil {
+	// 	ipObj.SetStatus(GraphNodeStatusFalse)
+	// 	log.Logger.Error(err, "获取 InferencePool 失败", "Namespace", namespace, "Name", name)
+	// }
+	// if !ksvcllmisvc.IsInferencePoolReady(ip) {
+	// 	ipObj.SetStatus(GraphNodeStatusFalse)
+	// }
+	// if ip.Spec.EndpointPickerRef.Kind != "Service" {
+	// 	log.Logger.Info("获取 InferencePool Service 失败", "kind", ip.Spec.EndpointPickerRef.Kind, "Namespace", namespace, "Name", name)
+	// 	nodes.AddNodes(string(ip.Spec.EndpointPickerRef.Name), namespace, utils.GetCrdKey("svc"), GraphNodeStatusFalse, nil, ipObj)
+	// 	return
+	// }
 
-	kh.getSvcDepShow(ctx, isvcName, string(ip.Spec.EndpointPickerRef.Name), namespace, ipObj, "", nodes)
+	// kh.getSvcDepShow(ctx, isvcName, string(ip.Spec.EndpointPickerRef.Name), namespace, ipObj, "", nodes)
 }
 
 func (kh *Handler) getEnvoyProxyShow(ctx context.Context, isvcName, name, namespace string, nodes GraphNodeMap) {
-	var aiGateway epv1alpha1.AIGatewayRouteList
-	if err := kh.kc.List(ctx, &aiGateway, client.InNamespace(namespace)); err != nil {
-		return
-	}
-	var aig *epv1alpha1.AIGatewayRoute
-	for i := range aiGateway.Items {
-		ag := aiGateway.Items[i]
-		for j := range ag.Spec.Rules {
-			for k := range ag.Spec.Rules[j].BackendRefs {
-				if ag.Spec.Rules[j].BackendRefs[k].Kind == nil {
-					continue
-				}
-				if string(*ag.Spec.Rules[j].BackendRefs[k].Kind) != "InferencePool" {
-					continue
-				}
-				if ag.Spec.Rules[j].BackendRefs[k].Name != name {
-					continue
-				}
-				aig = &ag
-			}
-		}
-	}
-	if aig == nil {
-		return
-	}
-	aigObj := nodes.AddNodes(aig.Name, aig.Namespace, utils.GetCrdKey(""), GraphNodeStatusFalse, nil)
-	hrObj, _ := kh.getHTTPRouteShow(ctx, isvcName, name, namespace, "", nodes)
-	hrObj.AddParent(aigObj)
+	// var aiGateway epv1alpha1.AIGatewayRouteList
+	// if err := kh.kc.List(ctx, &aiGateway, client.InNamespace(namespace)); err != nil {
+	// 	return
+	// }
+	// var aig *epv1alpha1.AIGatewayRoute
+	// for i := range aiGateway.Items {
+	// 	ag := aiGateway.Items[i]
+	// 	for j := range ag.Spec.Rules {
+	// 		for k := range ag.Spec.Rules[j].BackendRefs {
+	// 			if ag.Spec.Rules[j].BackendRefs[k].Kind == nil {
+	// 				continue
+	// 			}
+	// 			if string(*ag.Spec.Rules[j].BackendRefs[k].Kind) != "InferencePool" {
+	// 				continue
+	// 			}
+	// 			if ag.Spec.Rules[j].BackendRefs[k].Name != name {
+	// 				continue
+	// 			}
+	// 			aig = &ag
+	// 		}
+	// 	}
+	// }
+	// if aig == nil {
+	// 	return
+	// }
+	// aigObj := nodes.AddNodes(aig.Name, aig.Namespace, utils.GetCrdKey(""), GraphNodeStatusFalse, nil)
+	// hrObj, _ := kh.getHTTPRouteShow(ctx, isvcName, name, namespace, "", nodes)
+	// hrObj.AddParent(aigObj)
 }
 
 // GetLLMIsvc 获取单个LLMInferenceService详情

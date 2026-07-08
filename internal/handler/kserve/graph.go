@@ -181,11 +181,11 @@ func (kh *Handler) GraphDetail(ctx context.Context, name, namespace string) (*ks
 		svc := NewService(ctx, kh.kc, graph.Name, graph.Name, graph.Namespace, "")
 		tail, _ = svc.ToGraphNode(ctx, &nodes, nil)
 	} else {
-		ksvc := NewKnative(ctx, kh.kc, graph.Name, graph.Namespace, "")
+		ksvc := NewKnativeService(ctx, kh.kc, graph.Name, graph.Namespace)
 		tail, _ = ksvc.ToGraphNode(ctx, kh.kc, &nodes, nil)
 	}
- gn := InferenceGraph2GraphNode(namespace, currentNode.Steps[0], nodeMap)
-	Graph2Show(, graph.Namespace, graph.Spec, tail, gn, &nodes)
+	head := nodes.AddNodes(ksvcv1alpha1.GraphRootNodeName, namespace, InferenceGraphNodeKind, GraphNodeStatusTrue, nil)
+	Graph2Show(ksvcv1alpha1.GraphRootNodeName, graph.Namespace, graph.Spec, tail, head, &nodes)
 	nodes.AddEdges(head, "", tail)
 	return &graph, dm, &nodes, ready, nil
 }

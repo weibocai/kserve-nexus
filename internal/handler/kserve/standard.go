@@ -80,7 +80,7 @@ func Standard2GraphNode(ctx context.Context, kc client.Client, isvc *ksvcv1beta1
 
 		Hr: NewHttpRoute(ctx, kc, svc, isvc.Name, isvc.Name, isvc.Namespace, ac),
 	}
-	nodes := make(GraphNodeMap)
+	nodes := GraphNodeMap{Edges: make(map[string]*GraphEdge), Nodes: make(map[string]*GraphNode)}
 	s.GetGateway(&nodes)
 	// Predictor
 	s.Hrp = NewHttpRoute(ctx, kc, svc, isvc.Name, ksvcconstants.PredictorServiceName(isvc.Name), isvc.Namespace, ac)
