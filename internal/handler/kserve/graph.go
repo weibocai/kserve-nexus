@@ -219,5 +219,5 @@ func (kh *Handler) GetGraph(c *gin.Context) {
 		_ = c.Error(err)
 		return
 	}
-	middleware.SuccessJson(c, map[string]any{"kind": "single", "nodes": nodes.GetNodes(), "edges": nodes.GetEdges(), "dm": dm, "status": ready, "graph": graph})
+	middleware.SuccessJson(c, map[string]any{"graph": nodes, "dm": dm, "status": ready, "isvcGraph": graph})
 }
