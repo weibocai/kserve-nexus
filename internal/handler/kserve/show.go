@@ -59,7 +59,7 @@ type GraphEdge struct {
 type GraphNode struct {
 	Pk          string            `json:"id"`                    // 节点唯一标识
 	Namespace   string            `json:"namespace"`             // 命名空间
-	Name        string            `json:"name"`                  // 节点名称
+	Name        string            `json:"label"`                  // 节点名称
 	Kind        string            `json:"kind"`                  // 节点类型
 	Belong      string            `json:"belong,omitempty"`      // 嵌套图
 	Color       GraphNodeColor    `json:"color"`                 // 节点颜色
