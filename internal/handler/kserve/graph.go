@@ -193,17 +193,6 @@ func (kh *Handler) GraphDetail(ctx context.Context, namespace string, name strin
 }
 
 // GetGraph 获取推理图详情
-// @Summary 获取InferenceGraph详情
-// @Description 获取指定命名空间下单个InferenceGraph的详细信息，包含推理路由拓扑图
-// @Tags graph
-// @Accept json
-// @Produce json
-// @Param name path string true "InferenceGraph名称"
-// @Param namespace query string true "命名空间"
-// @Success 200 {object} middleware.Response "成功"
-// @Failure 400 {object} middleware.Response "参数错误"
-// @Failure 500 {object} middleware.Response "请求异常"
-// @Router /kserve/graph/{name} [get]
 func (kh *Handler) GetGraph(c *gin.Context) {
 	namespace := c.Query("namespace")
 	name := c.Param("name")
