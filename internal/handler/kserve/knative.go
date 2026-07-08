@@ -65,7 +65,7 @@ func GetKsvcStatus(ksvc *knservingv1.Service) GraphNodeStatus {
 
 // VirtualService2GraphNode 生成对应的图结构
 func VirtualService2GraphNode(ctx context.Context, kc client.Client, vs *istioclientv1beta1.VirtualService, name, namespace string, gwNodeMap map[string]*GraphNode, nodes *GraphNodeMap, belong *GraphNode, parent ...*GraphNode) (*GraphNode, *GraphNode) {
-	tail := nodes.AddNodes(vs.Name, vs.Namespace, utils.GetCrdKey("vs"), GetVirtualServiceStatus(vs), belong)
+	tail := nodes.AddNodes(vs.Name, vs.Namespace, utils.GetCrdKey("vs"), GetVirtualServiceStatus(vs), belong, parent...)
 
 	// 如果未找到，则设置成故障节点，且添加对应的路由
 	if vs == nil {
