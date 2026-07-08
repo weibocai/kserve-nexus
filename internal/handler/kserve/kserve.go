@@ -249,6 +249,6 @@ func (kh *Handler) GetIsvc(c *gin.Context) {
 	if dm == "Knative" {
 		nodes = KnativeIsvc2GraphNode(c, kh.kc, &isvc, ingressConfig)
 	}
-	response["nodes"], response["edges"] = nodes.GetNodes(), nodes.GetEdges()
+	response["graph"] = nodes
 	middleware.SuccessJson(c, response)
 }
