@@ -141,7 +141,7 @@ func (s *GraphNodeMap) AddEdges(target *GraphNode, label string, parents ...*Gra
 func (s *GraphNodeMap) AddNodesLabel(name, namespace, kind, label string, status GraphNodeStatus, belong *GraphNode, parent ...*GraphNode) *GraphNode {
 	pk := namespace + "_" + name + "_" + kind
 	if _, ok := s.Nodes[pk]; !ok {
-		s.Nodes[pk] = &GraphNode{Pk: pk, Namespace: namespace, Name: name, Kind: kind, Status: status, Description: make(map[string]string)}
+		s.Nodes[pk] = &GraphNode{Pk: pk, Namespace: namespace, Name: name, Kind: kind, Status: status, Color: GraphNodeStatus2GraphNodeColor(status, kind), Description: make(map[string]string)}
 	}
 	obj := s.Nodes[pk]
 	if belong != nil {
