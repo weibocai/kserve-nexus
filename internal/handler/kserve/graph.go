@@ -185,7 +185,7 @@ func (kh *Handler) GraphDetail(ctx context.Context, name, namespace string) (*ks
 		tail, _ = ksvc.ToGraphNode(ctx, kh.kc, &nodes, nil)
 	}
 	head := nodes.AddNodes(ksvcv1alpha1.GraphRootNodeName, namespace, InferenceGraphNodeKind, GraphNodeStatusTrue, nil)
-	Graph2Show(ksvcv1alpha1.GraphRootNodeName, graph.Namespace, graph.Spec, tail, head, &nodes)
+	Graph2Show(ksvcv1alpha1.GraphRootNodeName, graph.Namespace, graph.Spec, nil, head, &nodes)
 	nodes.AddEdges(head, "", tail)
 	return &graph, dm, &nodes, ready, nil
 }
